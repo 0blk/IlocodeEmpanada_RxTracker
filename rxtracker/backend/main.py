@@ -21,13 +21,12 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 load_dotenv()
 
 JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
-ALGORITHMS = ["HS256", "HS384", "HS512"]
+ALGORITHMS = ["HS256", "RS256", "HS384", "HS512"]
 security = HTTPBearer()
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
-        # We allow a few common algorithms just in case
         payload = jwt.decode(
             token, 
             JWT_SECRET, 
@@ -36,6 +35,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         )
         return payload.get("sub")
     except Exception as e:
+        print(f"!!! JWT Auth Error: {str(e)}")
         raise HTTPException(status_code=401, detail=f"Invalid or expired token: {str(e)}")
 import database as db_models
 from database import get_db, init_db
