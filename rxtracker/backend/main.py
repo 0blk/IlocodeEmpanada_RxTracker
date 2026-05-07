@@ -14,6 +14,7 @@ import json
 import os
 from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
+from dotenv import load_dotenv
 import jwt
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
