@@ -16,9 +16,19 @@ import 'screens/schedule_screen.dart';
 import 'widgets/starfield_background.dart';
 import 'widgets/phone_frame.dart';
 import 'widgets/hover_scale.dart';
+import 'widgets/rx_bottom_nav_bar.dart';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/auth_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await Supabase.initialize(
+    url: 'https://ajfvpzgydcerahgiwtah.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqZnZwemd5ZGNlcmFoZ2l3dGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTk2MDAsImV4cCI6MjA5MzczNTYwMH0.UK7u8jKelGs2h4tMLunfpgxzG-HASQyjJN941I0TBQc',
+  );
+
   tz.initializeTimeZones();
   if (!kIsWeb) {
     await NotificationService.instance.init();
@@ -83,9 +93,17 @@ class RxTrackerApp extends StatelessWidget {
           child: PhoneFrame(child: child),
         );
       },
-      initialRoute: '/dashboard',
+      home: StreamBuilder<AuthState>(
+        stream: Supabase.instance.client.auth.onAuthStateChange,
+        builder: (context, snapshot) {
+          final session = snapshot.data?.session;
+          if (session != null) {
+            return const MainShell();
+          }
+          return const AuthScreen();
+        },
+      ),
       routes: {
-        '/': (_) => const Scaffold(body: Center(child: Text('Login Page Placeholder'))),
         '/dashboard': (_) => const MainShell(initialIndex: 0),
         '/schedule': (_) => const MainShell(initialIndex: 1),
         '/medicene': (_) => const MedicinesScreen(),
@@ -127,140 +145,22 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
-      bottomNavigationBar: Container(
-        height: 90,
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavBarItem(
-                  icon: Icons.home_rounded,
-                  label: 'Home',
-                  isSelected: _currentIndex == 0,
-                  onTap: () => setState(() => _currentIndex = 0),
-                ),
-                _NavBarItem(
-                  icon: Icons.calendar_month_rounded,
-                  label: 'Schedule',
-                  isSelected: _currentIndex == 1,
-                  onTap: () => setState(() => _currentIndex = 1),
-                ),
-                const SizedBox(width: 60), // Space for SCAN button
-                _NavBarItem(
-                  icon: Icons.bar_chart_rounded,
-                  label: 'Report',
-                  isSelected: _currentIndex == 2,
-                  onTap: () => setState(() => _currentIndex = 2),
-                ),
-                _NavBarItem(
-                  icon: Icons.person_rounded,
-                  label: 'Profile',
-                  isSelected: _currentIndex == 3,
-                  onTap: () => setState(() => _currentIndex = 3),
-                ),
-              ],
-            ),
-            // Central SCAN Button
-          Positioned(
-            top: -30,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: HoverScale(
-                child: GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, '/scan'),
-                  behavior: HitTestBehavior.translucent,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFC6FF00), // Lime Green
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFC6FF00).withOpacity(0.4),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.document_scanner_rounded,
-                          color: Colors.black,
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'SCAN',
-                        style: TextStyle(
-                          color: Color(0xFFC6FF00),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+      appBar: AppBar(
+        title: const Text('RxTracker'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+            },
           ),
-          ],
-        ),
+        ],
+      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
+      bottomNavigationBar: RxBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
       ),
     );
   }
 }
-
-class _NavBarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _NavBarItem({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return HoverScale(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? const Color(0xFF6366F1) : Colors.grey[600],
-              size: 28,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? const Color(0xFF6366F1) : Colors.grey[600],
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-

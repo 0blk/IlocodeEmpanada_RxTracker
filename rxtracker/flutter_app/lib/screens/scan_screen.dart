@@ -18,8 +18,11 @@ class ScanScreen extends StatefulWidget {
 
 class _ScanScreenState extends State<ScanScreen> {
   Uint8List? _imageBytes;
+  File? _selectedImage;
   bool _scanning = false;
   String? _error;
+  Map<String, dynamic>? _scanResult;
+  final Set<int> _expandedEdits = {};
   final _picker = ImagePicker();
 
   Future<void> _pickImage(ImageSource source) async {
@@ -31,37 +34,40 @@ class _ScanScreenState extends State<ScanScreen> {
     );
     if (xFile == null) return;
 
-    final bytes = await xFile.readAsBytes();
-
-    setState(() {
-      _imageBytes = bytes;
-      _scanning = true; // Show scanning overlay immediately
-      _error = null;
-    });
-
-    // Automatically trigger AI scan
-    _scan();
+    if (kIsWeb) {
+      final bytes = await xFile.readAsBytes();
+      setState(() {
+        _imageBytes = bytes;
+        _error = null;
+        _scanResult = null;
+      });
+    } else {
+      setState(() {
+        _selectedImage = File(xFile.path);
+        _error = null;
+        _scanResult = null;
+      });
+    }
   }
 
   Future<void> _scan() async {
-    if (_imageBytes == null) return;
+    if (_imageBytes == null && _selectedImage == null) return;
+
+    setState(() {
+      _scanning = true;
+      _error = null;
+    });
 
     try {
       final api = context.read<ApiService>();
-      final result = await api.scanPrescriptionBytes(_imageBytes!);
+      final result = kIsWeb 
+          ? await api.scanPrescriptionBytes(_imageBytes!)
+          : await api.scanPrescription(_selectedImage!);
       
-      // On success, navigate to Add Medicine screen or show results
-      // For now, let's just go back to home or show a success message
       setState(() {
+        _scanResult = result;
         _scanning = false;
       });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Prescription Scanned Successfully!')),
-        );
-        Navigator.pop(context); // Go back after success
-      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -70,165 +76,194 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
+  Future<void> _addMedicineInstantly(Map<String, dynamic> med, int index) async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    String? endDate;
+    if (med['duration_days'] != null) {
+      final end = DateTime.now().add(Duration(days: med['duration_days'] as int));
+      endDate = end.toIso8601String().substring(0, 10);
+    }
+
+    final medicine = Medicine(
+      name: med['name'] ?? '',
+      dosage: med['dosage'] ?? '',
+      frequency: med['frequency'] ?? 'once_daily',
+      times: (med['times'] as List?)?.cast<String>() ?? ['08:00'],
+      startDate: today,
+      endDate: endDate,
+      instructions: med['instructions'] as String?,
+      category: med['category'] as String?,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await context.read<ApiService>().createMedicine(medicine);
+      if (!mounted) return;
+      Navigator.pop(context); 
+
+      setState(() {
+        final List<dynamic> meds = List.from(_scanResult!['medicines']);
+        meds[index] = {...med, 'added': true};
+        _scanResult!['medicines'] = meds;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${medicine.name} added!'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final medicines = (_scanResult?['medicines'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final hasImage = _imageBytes != null || _selectedImage != null;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background - Image Preview or Placeholder
-          if (_imageBytes != null)
+          // Background Image
+          if (hasImage)
             Positioned.fill(
-              child: Image.memory(_imageBytes!, fit: BoxFit.cover),
-            )
-          else
-            const Positioned.fill(
-              child: Center(
-                child: Text(
-                  'No Image Selected',
-                  style: TextStyle(color: Colors.white54, fontSize: 18),
-                ),
-              ),
+              child: kIsWeb ? Image.memory(_imageBytes!, fit: BoxFit.cover) : Image.file(_selectedImage!, fit: BoxFit.cover),
             ),
-
-          // Semi-transparent overlay
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.4),
-            ),
-          ),
-
-          // Scanning Frame & Text
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Scanning...',
-                  style: TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFFC6FF00), // Lime Green
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 40),
-                // The Frame
-                Container(
-                  width: 300,
-                  height: 400,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.transparent),
-                  ),
-                  child: Stack(
-                    children: [
-                      // Corners
-                      _buildCorner(top: 0, left: 0, isTop: true, isLeft: true),
-                      _buildCorner(top: 0, right: 0, isTop: true, isLeft: false),
-                      _buildCorner(bottom: 0, left: 0, isTop: false, isLeft: true),
-                      _buildCorner(bottom: 0, right: 0, isTop: false, isLeft: false),
-                      
-                      // Central Scanning Line
-                      Center(
-                        child: Container(
-                          width: 250,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFC6FF00),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFC6FF00).withOpacity(0.8),
-                                blurRadius: 10,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Top Controls (Close)
-          Positioned(
-            top: 40,
-            right: 20,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 32),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-
-          // Bottom Controls (Action Buttons)
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _ActionButton(
-                      icon: Icons.camera_alt_rounded,
-                      label: 'Take Photo',
-                      onTap: () => _pickImage(ImageSource.camera),
-                    ),
-                    const SizedBox(width: 40),
-                    _ActionButton(
-                      icon: Icons.file_upload_rounded,
-                      label: 'Upload Image',
-                      onTap: () => _pickImage(ImageSource.gallery),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
           
-          // Loading Overlay
-          if (_scanning)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black87,
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+          // Dark Overlay
+          Positioned.fill(child: Container(color: Colors.black.withOpacity(0.5))),
+
+          // Results or Instructions
+          SafeArea(
+            child: Column(
+              children: [
+                // Top Bar
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      CircularProgressIndicator(color: Color(0xFFC6FF00)),
-                      SizedBox(height: 20),
-                      Text(
-                        'AI is analyzing your prescription...',
-                        style: TextStyle(color: Colors.white, fontSize: 18),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
                       ),
+                      const Spacer(),
+                      const Text('PRESCRIPTION SCAN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                      const Spacer(),
+                      const SizedBox(width: 48),
                     ],
                   ),
                 ),
-              ),
+
+                Expanded(
+                  child: _scanResult != null 
+                    ? ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: medicines.length,
+                        itemBuilder: (context, index) => _EditableMedicineCard(
+                          index: index,
+                          medicine: medicines[index],
+                          isExpanded: _expandedEdits.contains(index),
+                          onToggleEdit: () => setState(() {
+                            if (_expandedEdits.contains(index)) _expandedEdits.remove(index);
+                            else _expandedEdits.add(index);
+                          }),
+                          onSaveEdit: (updated) => setState(() {
+                            (_scanResult!['medicines'] as List)[index] = updated;
+                            _expandedEdits.remove(index);
+                          }),
+                          onAdd: _addMedicineInstantly,
+                          onManualEdit: (med) => Navigator.push(context, MaterialPageRoute(builder: (_) => AddMedicineScreen(prefill: Medicine(name: med['name'] ?? '', dosage: med['dosage'] ?? '', frequency: med['frequency'] ?? 'once_daily', times: ['08:00'], startDate: DateTime.now().toIso8601String().substring(0,10))))),
+                        ),
+                      )
+                    : Center(
+                        child: _scanning 
+                          ? _buildScanningAnimation()
+                          : const Text('READY TO SCAN', style: TextStyle(color: Colors.white54, fontSize: 24, fontWeight: FontWeight.bold)),
+                      ),
+                ),
+
+                // Bottom Buttons
+                if (!_scanning && _scanResult == null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 40),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _ActionButton(
+                          icon: Icons.camera_alt_rounded,
+                          label: 'Take Photo',
+                          onTap: () => _pickImage(ImageSource.camera),
+                        ),
+                        const SizedBox(width: 40),
+                        _ActionButton(
+                          icon: Icons.file_upload_rounded,
+                          label: 'Upload Image',
+                          onTap: () => _pickImage(ImageSource.gallery),
+                        ),
+                        if (hasImage) ...[
+                          const SizedBox(width: 40),
+                          _ActionButton(
+                            icon: Icons.play_arrow_rounded,
+                            label: 'Start Scan',
+                            color: const Color(0xFFC6FF00),
+                            onTap: _scan,
+                          ),
+                        ]
+                      ],
+                    ),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
 
+  Widget _buildScanningAnimation() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text('ANALYZING...', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFFC6FF00), letterSpacing: 4)),
+        const SizedBox(height: 40),
+        Container(
+          width: 260,
+          height: 340,
+          decoration: BoxDecoration(border: Border.all(color: const Color(0xFFC6FF00).withOpacity(0.3), width: 2)),
+          child: Stack(
+            children: [
+              _buildCorner(top: 0, left: 0, isTop: true, isLeft: true),
+              _buildCorner(top: 0, right: 0, isTop: true, isLeft: false),
+              _buildCorner(bottom: 0, left: 0, isTop: false, isLeft: true),
+              _buildCorner(bottom: 0, right: 0, isTop: false, isLeft: false),
+              const Center(child: CircularProgressIndicator(color: Color(0xFFC6FF00))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCorner({double? top, double? bottom, double? left, double? right, required bool isTop, required bool isLeft}) {
     return Positioned(
-      top: top,
-      bottom: bottom,
-      left: left,
-      right: right,
+      top: top, bottom: bottom, left: left, right: right,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 30, height: 30,
         decoration: BoxDecoration(
           border: Border(
-            top: isTop ? const BorderSide(color: Color(0xFFC6FF00), width: 8) : BorderSide.none,
-            bottom: !isTop ? const BorderSide(color: Color(0xFFC6FF00), width: 8) : BorderSide.none,
-            left: isLeft ? const BorderSide(color: Color(0xFFC6FF00), width: 8) : BorderSide.none,
-            right: !isLeft ? const BorderSide(color: Color(0xFFC6FF00), width: 8) : BorderSide.none,
+            top: isTop ? const BorderSide(color: Color(0xFFC6FF00), width: 4) : BorderSide.none,
+            bottom: !isTop ? const BorderSide(color: Color(0xFFC6FF00), width: 4) : BorderSide.none,
+            left: isLeft ? const BorderSide(color: Color(0xFFC6FF00), width: 4) : BorderSide.none,
+            right: !isLeft ? const BorderSide(color: Color(0xFFC6FF00), width: 4) : BorderSide.none,
           ),
         ),
       ),
@@ -240,8 +275,9 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color color;
 
-  const _ActionButton({required this.icon, required this.label, required this.onTap});
+  const _ActionButton({required this.icon, required this.label, required this.onTap, this.color = Colors.white});
 
   @override
   Widget build(BuildContext context) {
@@ -249,21 +285,78 @@ class _ActionButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: 60, height: 60,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: color.withOpacity(color == Colors.white ? 0.2 : 1.0),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.3)),
+                border: Border.all(color: color.withOpacity(0.5)),
               ),
-              child: Icon(icon, color: Colors.white, size: 32),
+              child: Icon(icon, color: color == Colors.white ? Colors.white : Colors.black, size: 28),
             ),
             const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EditableMedicineCard extends StatelessWidget {
+  final int index;
+  final Map<String, dynamic> medicine;
+  final bool isExpanded;
+  final VoidCallback onToggleEdit;
+  final Function(Map<String, dynamic>) onSaveEdit;
+  final Function(Map<String, dynamic>, int) onAdd;
+  final Function(Map<String, dynamic>) onManualEdit;
+
+  const _EditableMedicineCard({
+    required this.index,
+    required this.medicine,
+    required this.isExpanded,
+    required this.onToggleEdit,
+    required this.onSaveEdit,
+    required this.onAdd,
+    required this.onManualEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isAdded = medicine['added'] ?? false;
+    return Card(
+      color: Colors.white.withOpacity(0.9),
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.medication, color: Color(0xFF6366F1)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(medicine['name'] ?? 'Unknown Medicine', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      Text('${medicine['dosage'] ?? ''} - ${medicine['frequency'] ?? ''}', style: TextStyle(color: Colors.grey[700])),
+                    ],
+                  ),
+                ),
+                if (!isAdded)
+                  IconButton(
+                    icon: const Icon(Icons.add_circle, color: Color(0xFFC6FF00), size: 32),
+                    onPressed: () => onAdd(medicine, index),
+                  )
+                else
+                  const Icon(Icons.check_circle, color: Colors.green, size: 32),
+              ],
             ),
           ],
         ),
