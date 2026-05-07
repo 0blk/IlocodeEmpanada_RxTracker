@@ -49,9 +49,9 @@ class _MedicinesScreenState extends State<MedicinesScreen> {
                               color: Colors.black87,
                             ),
                           ),
-                          const Text(
-                            'Ilocode Empanada',
-                            style: TextStyle(
+                          Text(
+                            provider.profile?['full_name']?.split(' ')[0] ?? 'User',
+                            style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.black,

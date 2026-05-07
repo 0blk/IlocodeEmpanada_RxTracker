@@ -147,6 +147,27 @@ class ApiService {
     return List<Map<String, dynamic>>.from(json.decode(response.body));
   }
 
+  // ─── Profile ─────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getProfile() async {
+    final response = await _client.get(
+      Uri.parse('$baseUrl/api/profile'),
+      headers: _headers,
+    );
+    _checkStatus(response);
+    return json.decode(response.body);
+  }
+
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
+    final response = await _client.patch(
+      Uri.parse('$baseUrl/api/profile'),
+      headers: _headers,
+      body: json.encode(data),
+    );
+    _checkStatus(response);
+    return json.decode(response.body);
+  }
+
   void _checkStatus(http.Response response) {
     if (response.statusCode >= 400) {
       throw ApiException(

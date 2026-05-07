@@ -10,6 +10,7 @@ class MedicineProvider extends ChangeNotifier {
   List<Medicine> medicines = [];
   List<TodayDose> todayDoses = [];
   List<Map<String, dynamic>> stats = [];
+  Map<String, dynamic>? profile;
 
   bool loading = false;
   String? error;
@@ -26,10 +27,12 @@ class MedicineProvider extends ChangeNotifier {
         _api.getMedicines(),
         _api.getTodayDoses(),
         _api.getStats(),
+        _api.getProfile(),
       ]);
       medicines = results[0] as List<Medicine>;
       todayDoses = results[1] as List<TodayDose>;
       stats = results[2] as List<Map<String, dynamic>>;
+      profile = results[3] as Map<String, dynamic>;
 
       // Reschedule all notifications
       await _rescheduleNotifications();
@@ -137,6 +140,18 @@ class MedicineProvider extends ChangeNotifier {
       }
       // Refresh stats
       stats = await _api.getStats();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateProfile(Map<String, dynamic> data) async {
+    try {
+      profile = await _api.updateProfile(data);
       notifyListeners();
       return true;
     } catch (e) {

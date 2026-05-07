@@ -46,6 +46,16 @@ class DoseLog(Base):
     taken_at = Column(DateTime, default=datetime.utcnow)
     notes = Column(Text, nullable=True)
 
+class Profile(Base):
+    __tablename__ = "profiles"
+
+    user_id = Column(String, primary_key=True, index=True) # Supabase User ID
+    full_name = Column(String, nullable=True)
+    age = Column(Integer, nullable=True)
+    sex = Column(String, nullable=True)
+    blood_type = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 # Create all tables
 def init_db():
     Base.metadata.create_all(bind=engine)

@@ -46,9 +46,9 @@ class StatsScreen extends StatelessWidget {
                               color: Colors.black87,
                             ),
                           ),
-                          const Text(
-                            'Ilocode Empanada',
-                            style: TextStyle(
+                          Text(
+                            provider.profile?['full_name']?.split(' ')[0] ?? 'User',
+                            style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
@@ -98,21 +98,21 @@ class StatsScreen extends StatelessWidget {
                     title: 'Current Maintenance Medication',
                     items: activeMedicines.map((m) => _ReportItem(
                       name: m.name,
-                      subtitle: '${m.dosage} Instructions',
-                      status: 'Status: Active',
+                      subtitle: '${m.dosage} - ${m.frequency.replaceAll('_', ' ').split(' ').map((w) => w[0].toUpperCase() + w.substring(1)).join(' ')}',
+                      status: 'Active',
                       category: m.category,
                     )).toList(),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // Recent Prescription Section
+                  // Previous Prescriptions Section
                   _ReportSection(
-                    title: 'Recent Prescription',
-                    items: recentMedicines.map((m) => _ReportItem(
+                    title: 'Previous Prescriptions',
+                    items: provider.medicines.where((m) => !m.isActive).take(5).map((m) => _ReportItem(
                       name: m.name,
-                      subtitle: '${m.dosage} Instructions',
-                      status: 'Date', // Or actual date
+                      subtitle: '${m.dosage} - ${m.startDate}',
+                      status: 'Completed',
                       category: m.category,
                     )).toList(),
                   ),

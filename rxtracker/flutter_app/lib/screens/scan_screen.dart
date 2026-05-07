@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../services/medicine_provider.dart';
 import '../models/medicine.dart';
 import '../utils/medicine_categories.dart';
 import 'add_medicine_screen.dart';
@@ -104,6 +105,10 @@ class _ScanScreenState extends State<ScanScreen> {
     try {
       await context.read<ApiService>().createMedicine(medicine);
       if (!mounted) return;
+      
+      // Trigger global refresh so Medication Bag and Dashboard update immediately
+      context.read<MedicineProvider>().refresh();
+      
       Navigator.pop(context); 
 
       setState(() {
@@ -112,9 +117,24 @@ class _ScanScreenState extends State<ScanScreen> {
         _scanResult!['medicines'] = meds;
       });
 
+      // Check if all medicines are added
+      final allAdded = (_scanResult!['medicines'] as List).every((m) => m['added'] == true);
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${medicine.name} added!'), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text('${medicine.name} added!'), 
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 1),
+        ),
       );
+
+      if (allAdded) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(context, '/schedule', (route) => false);
+          }
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
@@ -133,16 +153,31 @@ class _ScanScreenState extends State<ScanScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background Image
+          // Background Color
+          Positioned.fill(child: Container(color: Colors.black)),
+
+          // Scan Preview / Background Image
           if (hasImage)
             Positioned.fill(
-              child: kIsWeb 
-                ? Image.memory(_imageBytes!, fit: BoxFit.contain) 
-                : Image.file(_selectedImage!, fit: BoxFit.contain),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 100),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      border: Border.all(color: Colors.white24, width: 2),
+                    ),
+                    child: kIsWeb 
+                      ? Image.memory(_imageBytes!, fit: BoxFit.contain) 
+                      : Image.file(_selectedImage!, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
             ),
           
           // Dark Overlay
-          Positioned.fill(child: Container(color: Colors.black.withOpacity(0.5))),
+          Positioned.fill(child: Container(color: Colors.black.withOpacity(0.3))),
 
           // Results or Instructions
           SafeArea(
@@ -347,7 +382,10 @@ class _EditableMedicineCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(medicine['name'] ?? 'Unknown Medicine', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                      Text('${medicine['dosage'] ?? ''} - ${medicine['frequency'] ?? ''}', style: TextStyle(color: Colors.grey[700])),
+                      Text(
+                        '${medicine['dosage'] ?? ''} - ${(medicine['frequency'] ?? '').toString().replaceAll('_', ' ').split(' ').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ')}', 
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
                     ],
                   ),
                 ),

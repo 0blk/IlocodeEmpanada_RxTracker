@@ -128,7 +128,39 @@ class DoseLogSchema(BaseModel):
     medicine_id: int
     notes: Optional[str] = None
 
-# ─── Prescription OCR ──────────────────────────────────────────────────────────
+class ProfileSchema(BaseModel):
+    full_name: Optional[str] = None
+    age: Optional[int] = None
+    sex: Optional[str] = None
+    blood_type: Optional[str] = None
+
+# ─── Profile ───────────────────────────────────────────────────────────────────
+
+@app.get("/api/profile")
+def get_profile(user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    profile = db.query(db_models.Profile).filter(db_models.Profile.user_id == user_id).first()
+    if not profile:
+        # Create empty profile if not exists
+        profile = db_models.Profile(user_id=user_id)
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+    return profile
+
+@app.patch("/api/profile")
+def update_profile(profile_data: ProfileSchema, user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    profile = db.query(db_models.Profile).filter(db_models.Profile.user_id == user_id).first()
+    if not profile:
+        profile = db_models.Profile(user_id=user_id)
+        db.add(profile)
+    
+    update_data = profile_data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(profile, key, value)
+    
+    db.commit()
+    db.refresh(profile)
+    return profile
 
 @app.post("/api/prescriptions/scan")
 async def scan_prescription(file: UploadFile = File(...)):

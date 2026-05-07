@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/api_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -11,6 +12,11 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _sexController = TextEditingController();
+  final _bloodTypeController = TextEditingController();
+  
   bool _isLoading = false;
   bool _isSignUp = false;
 
@@ -18,14 +24,27 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     try {
       if (_isSignUp) {
-        await Supabase.instance.client.auth.signUp(
+        final res = await Supabase.instance.client.auth.signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+        
+        if (res.user != null) {
+          // Update profile in backend
+          final api = ApiService(); // Use temporary instance or provider
+          await api.updateProfile({
+            'full_name': _nameController.text.trim(),
+            'age': int.tryParse(_ageController.text.trim()),
+            'sex': _sexController.text.trim(),
+            'blood_type': _bloodTypeController.text.trim(),
+          });
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Check your email for confirmation!')),
+            const SnackBar(content: Text('Account created! Sign in to continue.')),
           );
+          setState(() => _isSignUp = false);
         }
       } else {
         await Supabase.instance.client.auth.signInWithPassword(
@@ -59,12 +78,12 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
         child: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Spacer(),
+                const SizedBox(height: 40),
                 Icon(
                   Icons.medication,
                   size: 80,
@@ -87,6 +106,49 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                 ),
                 const SizedBox(height: 48),
+                if (_isSignUp) ...[
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _ageController,
+                          decoration: const InputDecoration(
+                            labelText: 'Age',
+                            prefixIcon: Icon(Icons.cake_outlined),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextField(
+                          controller: _sexController,
+                          decoration: const InputDecoration(
+                            labelText: 'Sex',
+                            prefixIcon: Icon(Icons.wc),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _bloodTypeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Blood Type',
+                      prefixIcon: Icon(Icons.bloodtype_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 TextField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -104,7 +166,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   obscureText: true,
                 ),
-                const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _authenticate,
                   child: _isLoading
@@ -122,7 +183,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ? 'Already have an account? Sign In'
                       : 'Don\'t have an account? Create one'),
                 ),
-                const Spacer(),
+                const SizedBox(height: 48),
               ],
             ),
           ),

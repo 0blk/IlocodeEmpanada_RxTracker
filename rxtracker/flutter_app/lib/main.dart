@@ -13,6 +13,7 @@ import 'screens/history_screen.dart';
 import 'screens/stats_screen.dart';
 import 'screens/medicines_screen.dart';
 import 'screens/schedule_screen.dart';
+import 'screens/profile_screen.dart';
 import 'widgets/starfield_background.dart';
 import 'widgets/phone_frame.dart';
 import 'widgets/hover_scale.dart';
@@ -108,6 +109,7 @@ class RxTrackerApp extends StatelessWidget {
         '/schedule': (_) => const MainShell(initialIndex: 1),
         '/medicene': (_) => const MedicinesScreen(),
         '/report': (_) => const MainShell(initialIndex: 2),
+        '/profile': (_) => const MainShell(initialIndex: 3),
         '/scan': (_) => const ScanScreen(),
         '/add-medicine': (_) => const AddMedicineScreen(),
       },
@@ -125,21 +127,43 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   late int _currentIndex;
+  late PageController _pageController;
 
   final List<Widget> _screens = const [
     HomeScreen(),
     ScheduleScreen(),
     StatsScreen(),
-    Center(child: Text('Profile')), // Placeholder for Profile
+    ProfileScreen(),
   ];
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: _currentIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MedicineProvider>().refresh();
     });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  void _onNavTap(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOutCubic,
+    );
   }
 
   @override
@@ -156,10 +180,15 @@ class _MainShellState extends State<MainShell> {
           ),
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        physics: const NeverScrollableScrollPhysics(), // Only navigate via bottom bar for index-proportional slides
+        children: _screens,
+      ),
       bottomNavigationBar: RxBottomNavBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: _onNavTap,
       ),
     );
   }
