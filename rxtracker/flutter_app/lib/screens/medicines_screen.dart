@@ -26,129 +26,125 @@ class _MedicinesScreenState extends State<MedicinesScreen> {
             ? 'Good Afternoon'
             : 'Good Evening';
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // Header (Same as Home)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$greeting,',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.black87,
-                            ),
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          // Header (Same as Home)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$greeting,',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black87,
                           ),
-                          Text(
-                            provider.profile?['full_name']?.split(' ')[0] ?? 'User',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
+                        ),
+                        Text(
+                          provider.profile?['full_name']?.split(' ')[0] ?? 'User',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.notifications_none_rounded, size: 28),
+                  const SizedBox(width: 16),
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.limeAccent[400],
+                    child: const Icon(Icons.person, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Big Pill Visual (Restored to 200x200 as per dashboard)
+          SliverToBoxAdapter(
+            child: Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          const Color(0xFF6366F1).withOpacity(0.4),
+                          const Color(0xFF6366F1).withOpacity(0.1),
+                          Colors.transparent,
                         ],
                       ),
                     ),
-                    const Icon(Icons.notifications_none_rounded, size: 28),
-                    const SizedBox(width: 16),
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: Colors.limeAccent[400],
-                      child: const Icon(Icons.person, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Big Pill Visual (Restored to 200x200 as per dashboard)
-            SliverToBoxAdapter(
-              child: Center(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            const Color(0xFF6366F1).withOpacity(0.4),
-                            const Color(0xFF6366F1).withOpacity(0.1),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                    Image.asset(
-                      'assets/pill_3d_visual.png',
-                      width: 120,
-                      height: 120,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(Icons.medication_rounded, size: 100, color: Colors.indigo[400]);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Title
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Center(
-                  child: Text(
-                    'Medication Bag',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
                   ),
-                ),
-              ),
-            ),
-
-            // Medicine List
-            if (provider.loading)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (provider.medicines.isEmpty)
-              const SliverFillRemaining(
-                child: Center(child: Text('Your medication bag is empty.')),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      return _MedicineInfoCard(medicine: provider.medicines[index]);
+                  Image.asset(
+                    'assets/pill_3d_visual.png',
+                    width: 120,
+                    height: 120,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(Icons.medication_rounded, size: 100, color: Colors.indigo[400]);
                     },
-                    childCount: provider.medicines.length,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Title
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(
+                child: Text(
+                  'Medication Bag',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
                 ),
               ),
-            
-            const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
-          ],
-        ),
+            ),
+          ),
+
+          // Medicine List
+          if (provider.loading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (provider.medicines.isEmpty)
+            const SliverFillRemaining(
+              child: Center(child: Text('Your medication bag is empty.')),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    return _MedicineInfoCard(medicine: provider.medicines[index]);
+                  },
+                  childCount: provider.medicines.length,
+                ),
+              ),
+            ),
+          
+          const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
+        ],
       ),
-      bottomNavigationBar: _BottomNavBar(currentIndex: -1), // Custom nav for this page
     );
   }
 }
@@ -331,115 +327,8 @@ class _InfoSection extends StatelessWidget {
   }
 }
 
-class _BottomNavBar extends StatelessWidget {
-  final int currentIndex;
-  const _BottomNavBar({required this.currentIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 90,
-      decoration: const BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavBarItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                isSelected: currentIndex == 0,
-                onTap: () => Navigator.pushReplacementNamed(context, '/dashboard'),
-              ),
-              _NavBarItem(
-                icon: Icons.calendar_month_rounded,
-                label: 'Schedule',
-                isSelected: currentIndex == 1,
-                onTap: () => Navigator.pushReplacementNamed(context, '/schedule'),
-              ),
-              const SizedBox(width: 60),
-              _NavBarItem(
-                icon: Icons.bar_chart_rounded,
-                label: 'Report',
-                isSelected: currentIndex == 2,
-                onTap: () => Navigator.pushReplacementNamed(context, '/report'),
-              ),
-              _NavBarItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                isSelected: currentIndex == 3,
-                onTap: () {},
-              ),
-            ],
-          ),
-          Positioned(
-            top: -30,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: HoverScale(
-                child: GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, '/scan'),
-                  behavior: HitTestBehavior.translucent,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFC6FF00),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFC6FF00).withOpacity(0.4),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.document_scanner_rounded, color: Colors.black, size: 32),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text('SCAN', style: TextStyle(color: Color(0xFFC6FF00), fontWeight: FontWeight.bold, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
 
-class _NavBarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _NavBarItem({required this.icon, required this.label, required this.isSelected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return HoverScale(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: isSelected ? const Color(0xFF6366F1) : Colors.grey[600], size: 28),
-            const SizedBox(height: 4),
-            Text(label, style: TextStyle(color: isSelected ? const Color(0xFF6366F1) : Colors.grey[600], fontSize: 10, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-          ],
-        ),
-      ),
-    );
-  }
-}
+class _InfoSection extends StatelessWidget {

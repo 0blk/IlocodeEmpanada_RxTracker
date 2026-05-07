@@ -21,141 +21,162 @@ class StatsScreen extends StatelessWidget {
             : 'Good Evening';
 
     final activeMedicines = provider.medicines.where((m) => m.isActive).toList();
-    final recentMedicines = provider.medicines.take(3).toList(); // Mocking recent for now
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          // Header
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$greeting,',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          provider.profile?['full_name']?.split(' ')[0] ?? 'User',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.notifications_none_rounded, size: 28),
+                  const SizedBox(width: 16),
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.limeAccent[400],
+                    child: const Icon(Icons.person, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Title Bar
+          SliverToBoxAdapter(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              decoration: const BoxDecoration(
+                color: Color(0xFF6366F1), // Purple Bar
+              ),
+              child: const Text(
+                'Doctors Report',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+
+          // Main Content
+          SliverPadding(
+            padding: const EdgeInsets.all(20),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // Current Maintenance Medication Section
+                _ReportSection(
+                  title: 'Current Maintenance Medication',
+                  items: activeMedicines.map((m) => _ReportItem(
+                    name: m.name,
+                    subtitle: '${m.dosage} - ${m.frequency.replaceAll('_', ' ').split(' ').map((w) => w[0].toUpperCase() + w.substring(1)).join(' ')}',
+                    status: 'Active',
+                    category: m.category,
+                  )).toList(),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Previous Prescriptions Section
+                _ReportSection(
+                  title: 'Previous Prescriptions',
+                  items: () {
+                    final inactive = provider.medicines.where((m) => !m.isActive).toList();
+                    // Group by startDate (assuming same scan date = same prescription)
+                    final Map<String, List<Medicine>> grouped = {};
+                    for (var m in inactive) {
+                      grouped.putIfAbsent(m.startDate, () => []).add(m);
+                    }
+                    final sortedDates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+                    
+                    return sortedDates.map((date) {
+                      final meds = grouped[date]!;
+                      return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '$greeting,',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.black87,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            child: Text(
+                              'Prescription from $date',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
                             ),
                           ),
-                          Text(
-                            provider.profile?['full_name']?.split(' ')[0] ?? 'User',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
+                          ...meds.map((m) => _ReportItem(
+                            name: m.name,
+                            subtitle: m.dosage,
+                            status: 'Completed',
+                            category: m.category,
+                          )),
                         ],
+                      );
+                    }).toList();
+                  }(),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Share and Export Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1), // Purple
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      elevation: 0,
                     ),
-                    const Icon(Icons.notifications_none_rounded, size: 28),
-                    const SizedBox(width: 16),
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: Colors.limeAccent[400],
-                      child: const Icon(Icons.person, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Title Bar
-            SliverToBoxAdapter(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF6366F1), // Purple Bar
-                ),
-                child: const Text(
-                  'Doctors Report',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-
-            // Main Content
-            SliverPadding(
-              padding: const EdgeInsets.all(20),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  // Current Maintenance Medication Section
-                  _ReportSection(
-                    title: 'Current Maintenance Medication',
-                    items: activeMedicines.map((m) => _ReportItem(
-                      name: m.name,
-                      subtitle: '${m.dosage} - ${m.frequency.replaceAll('_', ' ').split(' ').map((w) => w[0].toUpperCase() + w.substring(1)).join(' ')}',
-                      status: 'Active',
-                      category: m.category,
-                    )).toList(),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Previous Prescriptions Section
-                  _ReportSection(
-                    title: 'Previous Prescriptions',
-                    items: provider.medicines.where((m) => !m.isActive).take(5).map((m) => _ReportItem(
-                      name: m.name,
-                      subtitle: '${m.dosage} - ${m.startDate}',
-                      status: 'Completed',
-                      category: m.category,
-                    )).toList(),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Share and Export Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1), // Purple
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Share and Export',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        elevation: 0,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Share and Export',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_circle_right_rounded, size: 24),
-                        ],
-                      ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.arrow_circle_right_rounded, size: 24),
+                      ],
                     ),
                   ),
-                  
-                  const SizedBox(height: 100),
-                ]),
-              ),
+                ),
+                
+                const SizedBox(height: 100),
+              ]),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

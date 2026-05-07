@@ -129,9 +129,12 @@ class _MainShellState extends State<MainShell> {
   late int _currentIndex;
   late PageController _pageController;
 
+  // Re-ordered to match the bottom nav bar in the image:
+  // Home, Schedule, Scan, Report, Profile
   final List<Widget> _screens = const [
     HomeScreen(),
-    ScheduleScreen(),
+    MedicinesScreen(), // This is the "Medication Bag"
+    ScanScreen(),      // Integrated into PageView for sliding animation
     StatsScreen(),
     ProfileScreen(),
   ];
@@ -159,6 +162,8 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _onNavTap(int index) {
+    if (_currentIndex == index) return;
+    
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 400),
@@ -169,22 +174,18 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('RxTracker'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await Supabase.instance.client.auth.signOut();
-            },
-          ),
-        ],
-      ),
+      // Removed AppBar to let each screen handle its own header (matching the design image)
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        physics: const NeverScrollableScrollPhysics(), // Only navigate via bottom bar for index-proportional slides
-        children: _screens,
+        physics: const NeverScrollableScrollPhysics(), 
+        children: [
+          HomeScreen(onBagTap: () => _onNavTap(1)),
+          const MedicinesScreen(),
+          const ScanScreen(),
+          const StatsScreen(),
+          const ProfileScreen(),
+        ],
       ),
       bottomNavigationBar: RxBottomNavBar(
         currentIndex: _currentIndex,

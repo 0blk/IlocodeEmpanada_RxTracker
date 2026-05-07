@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/medicine_provider.dart';
 import 'hover_scale.dart';
 
 class RxBottomNavBar extends StatelessWidget {
@@ -39,16 +41,16 @@ class RxBottomNavBar extends StatelessWidget {
               ),
               const SizedBox(width: 60), // Space for SCAN button
               _NavBarItem(
-                icon: Icons.bar_chart_rounded,
+                icon: Icons.published_with_changes_rounded,
                 label: 'Report',
-                isSelected: currentIndex == 2,
-                onTap: () => onTap(2),
+                isSelected: currentIndex == 3,
+                onTap: () => onTap(3),
               ),
               _NavBarItem(
                 icon: Icons.person_rounded,
                 label: 'Profile',
-                isSelected: currentIndex == 3,
-                onTap: () => onTap(3),
+                isSelected: currentIndex == 4,
+                onTap: () => onTap(4),
               ),
             ],
           ),
@@ -59,43 +61,40 @@ class RxBottomNavBar extends StatelessWidget {
             right: 0,
             child: Center(
               child: HoverScale(
-                child: GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, '/scan'),
-                  behavior: HitTestBehavior.translucent,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFC6FF00), // Lime Green
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFC6FF00).withOpacity(0.4),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.document_scanner_rounded,
-                          color: Colors.black,
-                          size: 32,
-                        ),
+                onTap: () => onTap(2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFC6FF00), // Lime Green
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFC6FF00).withOpacity(0.4),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'SCAN',
-                        style: TextStyle(
-                          color: Color(0xFFC6FF00),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
+                      child: const Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: Colors.black,
+                        size: 32,
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'SCAN',
+                      style: TextStyle(
+                        color: Color(0xFFC6FF00),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

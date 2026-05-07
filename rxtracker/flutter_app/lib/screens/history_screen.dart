@@ -54,35 +54,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
     final sortedDates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dose History'),
-        actions: [
-          PopupMenuButton<int>(
-            initialValue: _days,
-            onSelected: (v) {
-              setState(() => _days = v);
-              _fetch();
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 7, child: Text('Last 7 days')),
-              const PopupMenuItem(value: 14, child: Text('Last 14 days')),
-              const PopupMenuItem(value: 30, child: Text('Last 30 days')),
-            ],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  Text('$_days days',
-                      style: Theme.of(context).textTheme.bodyMedium),
-                  const Icon(Icons.arrow_drop_down),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: _loading
+    return SafeArea(
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Text(_error!))

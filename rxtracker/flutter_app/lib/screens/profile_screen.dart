@@ -60,17 +60,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     final email = user?.email ?? 'User Email';
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _isEditing ? AppBar(
-        title: const Text('Edit Profile'),
-        actions: [
-          IconButton(icon: const Icon(Icons.check), onPressed: _saveProfile),
-        ],
-      ) : null,
-      body: SingleChildScrollView(
+    return SafeArea(
+      child: SingleChildScrollView(
         child: Column(
           children: [
+            if (_isEditing)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Text('Edit Profile', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    IconButton(icon: const Icon(Icons.check), onPressed: _saveProfile),
+                  ],
+                ),
+              ),
             const SizedBox(height: 40),
             // Avatar & Name
             Center(
@@ -83,17 +87,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: const Icon(Icons.person, size: 80, color: Color(0xFF6366F1)),
                   ),
                   if (!_isEditing)
-                  GestureDetector(
-                    onTap: () => setState(() => _isEditing = true),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFC6FF00),
-                        shape: BoxShape.circle,
+                    HoverScale(
+                      onTap: () => setState(() => _isEditing = true),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFC6FF00),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.edit, size: 20, color: Colors.black),
                       ),
-                      child: const Icon(Icons.edit, size: 20, color: Colors.black),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -113,7 +117,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     TextField(controller: _bloodTypeController, decoration: const InputDecoration(labelText: 'Blood Type')),
                     const SizedBox(height: 24),
-                    ElevatedButton(onPressed: _saveProfile, child: const Text('Save Changes')),
+                    HoverScale(
+                      child: ElevatedButton(
+                        onPressed: _saveProfile,
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 50),
+                          backgroundColor: const Color(0xFF6366F1),
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Save Changes'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     TextButton(onPressed: () => setState(() => _isEditing = false), child: const Text('Cancel')),
                   ],
                 ),
@@ -159,18 +174,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 40),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    await Supabase.instance.client.auth.signOut();
-                  },
-                  icon: const Icon(Icons.logout, color: Colors.red),
-                  label: const Text('Sign Out', style: TextStyle(color: Colors.red)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: Colors.red),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: HoverScale(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await Supabase.instance.client.auth.signOut();
+                    },
+                    icon: const Icon(Icons.logout, color: Colors.red),
+                    label: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
               ),
