@@ -21,19 +21,20 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 load_dotenv()
 
 JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
-ALGORITHM = "HS256"
+ALGORITHMS = ["HS256", "HS384", "HS512"]
 security = HTTPBearer()
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
+        # We allow a few common algorithms just in case
         payload = jwt.decode(
             token, 
             JWT_SECRET, 
-            algorithms=[ALGORITHM], 
-            options={"verify_aud": False} # Supabase uses specific audiences, we'll keep it simple for now
+            algorithms=ALGORITHMS, 
+            options={"verify_aud": False}
         )
-        return payload.get("sub") # This is the unique User ID
+        return payload.get("sub")
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid or expired token: {str(e)}")
 import database as db_models
