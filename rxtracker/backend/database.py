@@ -25,6 +25,7 @@ def init_db():
             end_date    TEXT,                -- ISO date, NULL = ongoing
             instructions TEXT,
             stock       INTEGER,             -- pill count, NULL = not tracked
+            category    TEXT,               -- e.g. 'hypertension', 'diabetes'
             created_at  TEXT DEFAULT (datetime('now'))
         );
 
@@ -42,4 +43,12 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_doses_scheduled ON dose_logs(scheduled_time);
     """)
     db.commit()
+
+    # Migration: add 'category' column if it doesn't exist yet (for existing DBs)
+    try:
+        db.execute("ALTER TABLE medicines ADD COLUMN category TEXT")
+        db.commit()
+    except Exception:
+        pass  # Column already exists
+
     db.close()

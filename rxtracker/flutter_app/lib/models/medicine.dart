@@ -11,6 +11,7 @@ class Medicine {
   final String? instructions;
   final int? stock;
   final String? createdAt;
+  final String? category; // e.g. 'hypertension', 'diabetes', 'antibiotic'
 
   const Medicine({
     this.id,
@@ -23,6 +24,7 @@ class Medicine {
     this.instructions,
     this.stock,
     this.createdAt,
+    this.category,
   });
 
   factory Medicine.fromJson(Map<String, dynamic> j) {
@@ -49,6 +51,7 @@ class Medicine {
       instructions: j['instructions'] as String?,
       stock: j['stock'] as int?,
       createdAt: j['created_at'] as String?,
+      category: j['category'] as String?,
     );
   }
 
@@ -62,6 +65,7 @@ class Medicine {
         if (endDate != null) 'end_date': endDate,
         if (instructions != null) 'instructions': instructions,
         if (stock != null) 'stock': stock,
+        if (category != null) 'category': category,
       };
 
   Medicine copyWith({
@@ -74,6 +78,7 @@ class Medicine {
     String? endDate,
     String? instructions,
     int? stock,
+    String? category,
   }) =>
       Medicine(
         id: id ?? this.id,
@@ -86,6 +91,7 @@ class Medicine {
         instructions: instructions ?? this.instructions,
         stock: stock ?? this.stock,
         createdAt: createdAt,
+        category: category ?? this.category,
       );
 
   String get frequencyLabel {

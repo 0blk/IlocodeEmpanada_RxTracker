@@ -8,6 +8,7 @@ class TodayDose {
   final bool taken;
   final String? takenAt;
   final int? logId;
+  final String? category; // medicine category for color-coding
 
   const TodayDose({
     required this.medicineId,
@@ -19,6 +20,7 @@ class TodayDose {
     required this.taken,
     this.takenAt,
     this.logId,
+    this.category,
   });
 
   factory TodayDose.fromJson(Map<String, dynamic> j) => TodayDose(
@@ -31,6 +33,7 @@ class TodayDose {
         taken: j['taken'] as bool? ?? false,
         takenAt: j['taken_at'] as String?,
         logId: j['log_id'] as int?,
+        category: j['category'] as String?,
       );
 
   TodayDose copyWith({bool? taken, String? takenAt, int? logId}) => TodayDose(
@@ -43,6 +46,7 @@ class TodayDose {
         taken: taken ?? this.taken,
         takenAt: takenAt ?? this.takenAt,
         logId: logId ?? this.logId,
+        category: category,
       );
 
   bool get isOverdue {

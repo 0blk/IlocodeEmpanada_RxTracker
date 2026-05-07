@@ -3,7 +3,6 @@ import '../models/medicine.dart';
 import '../models/dose.dart';
 import 'api_service.dart';
 import 'notification_service.dart';
-import 'package:flutter/foundation.dart';
 
 class MedicineProvider extends ChangeNotifier {
   final ApiService _api;
@@ -67,12 +66,34 @@ class MedicineProvider extends ChangeNotifier {
     }
   }
 
+  Future<Medicine?> updateMedicine(int id, Map<String, dynamic> updates) async {
+    try {
+      final updated = await _api.updateMedicine(id, updates);
+      final idx = medicines.indexWhere((m) => m.id == id);
+      if (idx != -1) {
+        medicines[idx] = updated;
+        notifyListeners();
+      }
+      await fetchTodayDoses();
+      // Reschedule notifications for this medicine
+      if (!kIsWeb) {
+        await NotificationService.instance.cancelForMedicine(id);
+        if (updated.isActive) await _scheduleNotificationsFor(updated);
+      }
+      return updated;
+    } catch (e) {
+      error = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
   Future<bool> deleteMedicine(int id) async {
     try {
       await _api.deleteMedicine(id);
       medicines.removeWhere((m) => m.id == id);
       todayDoses.removeWhere((d) => d.medicineId == id);
-      await NotificationService.instance.cancelForMedicine(id);
+      if (!kIsWeb) await NotificationService.instance.cancelForMedicine(id);
       notifyListeners();
       return true;
     } catch (e) {
@@ -161,9 +182,8 @@ class MedicineProvider extends ChangeNotifier {
   int get takenToday => todayDoses.where((d) => d.taken).length;
 
   double get todayAdherence {
-    if (todayDoses.isEmpty) return 0;
-    final due = todayDoses.where((d) => !d.isUpcoming).length;
-    if (due == 0) return 1.0;
-    return takenToday / due;
+    final total = todayDoses.length;
+    if (total == 0) return 0;
+    return (takenToday / total).clamp(0.0, 1.0);
   }
 }

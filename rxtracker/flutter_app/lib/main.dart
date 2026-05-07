@@ -11,12 +11,13 @@ import 'screens/scan_screen.dart';
 import 'screens/add_medicine_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/stats_screen.dart';
+import 'screens/medicines_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
   if (!kIsWeb) {
-  await NotificationService.instance.init();
+    await NotificationService.instance.init();
   }
 
   runApp(
@@ -47,13 +48,55 @@ class RxTrackerApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
+        // ── Elderly-friendly font sizes ──────────────────────────
+        textTheme: const TextTheme(
+          bodySmall: TextStyle(fontSize: 13),
+          bodyMedium: TextStyle(fontSize: 15),
+          bodyLarge: TextStyle(fontSize: 17),
+          labelSmall: TextStyle(fontSize: 12),
+          labelMedium: TextStyle(fontSize: 13),
+          labelLarge: TextStyle(fontSize: 15),
+          titleSmall: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          titleMedium: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+          titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          headlineSmall: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
         appBarTheme: const AppBarTheme(
           centerTitle: false,
           elevation: 0,
+          titleTextStyle: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
         cardTheme: CardThemeData(
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14)),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(0, 48),
+            textStyle:
+                const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(0, 48),
+            textStyle:
+                const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(),
+          contentPadding:
+              EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         ),
       ),
       home: const MainShell(),
@@ -62,6 +105,7 @@ class RxTrackerApp extends StatelessWidget {
         '/add-medicine': (_) => const AddMedicineScreen(),
         '/history': (_) => const HistoryScreen(),
         '/stats': (_) => const StatsScreen(),
+        '/medicines': (_) => const MedicinesScreen(),
       },
     );
   }
@@ -79,6 +123,7 @@ class _MainShellState extends State<MainShell> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
+    MedicinesScreen(),
     HistoryScreen(),
     StatsScreen(),
   ];
@@ -86,7 +131,6 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    // Initial data fetch
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MedicineProvider>().refresh();
     });
@@ -99,17 +143,36 @@ class _MainShellState extends State<MainShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.today), label: 'Today'),
-          NavigationDestination(icon: Icon(Icons.history), label: 'History'),
-          NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Stats'),
+          NavigationDestination(
+            icon: Icon(Icons.today_outlined),
+            selectedIcon: Icon(Icons.today),
+            label: 'Today',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.medication_outlined),
+            selectedIcon: Icon(Icons.medication),
+            label: 'Medicines',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Stats',
+          ),
         ],
       ),
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton.extended(
+              heroTag: 'main_fab',
               onPressed: () => _showAddOptions(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Medicine'),
+              icon: const Icon(Icons.add, size: 24),
+              label: const Text('Add Medicine', style: TextStyle(fontSize: 15)),
             )
           : null,
     );
@@ -118,31 +181,86 @@ class _MainShellState extends State<MainShell> {
   void _showAddOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.document_scanner),
-              title: const Text('Scan Prescription'),
-              subtitle: const Text('Use camera or gallery'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/scan');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Add Manually'),
-              subtitle: const Text('Enter medicine details'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/add-medicine');
-              },
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              _BottomSheetOption(
+                icon: Icons.document_scanner,
+                iconColor: Colors.blue,
+                title: 'Scan Prescription',
+                subtitle: 'Take a photo — AI reads it for you',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/scan');
+                },
+              ),
+              _BottomSheetOption(
+                icon: Icons.edit_note,
+                iconColor: Colors.teal,
+                title: 'Add Manually',
+                subtitle: 'Enter medicine details yourself',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/add-medicine');
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _BottomSheetOption extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _BottomSheetOption({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: iconColor, size: 26),
+      ),
+      title: Text(title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 13)),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
     );
   }
 }
