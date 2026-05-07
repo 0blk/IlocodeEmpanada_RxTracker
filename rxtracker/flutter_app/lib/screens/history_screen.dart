@@ -47,7 +47,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     // Group by date
     final Map<String, List<Map<String, dynamic>>> grouped = {};
     for (final entry in _history) {
-      final dt = DateTime.parse(entry['scheduled_time'] as String);
+      final scheduledStr = (entry['scheduled_time'] ?? entry['taken_at'] ?? DateTime.now().toIso8601String()).toString();
+      final dt = DateTime.parse(scheduledStr);
       final dateKey = DateFormat('yyyy-MM-dd').format(dt);
       grouped.putIfAbsent(dateKey, () => []).add(entry);
     }
@@ -95,7 +96,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           final dateKey = sortedDates[i];
                           final entries = grouped[dateKey]!;
                           final taken =
-                              entries.where((e) => e['taken'] == 1).length;
+                              entries.where((e) => e['taken'] == 1 || e['taken'] == true).length;
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,8 +158,9 @@ class _HistoryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final taken = entry['taken'] == 1;
-    final scheduledDt = DateTime.parse(entry['scheduled_time'] as String);
+    final taken = entry['taken'] == 1 || entry['taken'] == true;
+    final scheduledStr = (entry['scheduled_time'] ?? entry['taken_at'] ?? DateTime.now().toIso8601String()).toString();
+    final scheduledDt = DateTime.parse(scheduledStr);
     final timeStr = DateFormat('h:mm a').format(scheduledDt);
 
     return ListTile(
@@ -166,8 +168,8 @@ class _HistoryItem extends StatelessWidget {
         taken ? Icons.check_circle : Icons.cancel,
         color: taken ? Colors.green : Colors.red[300],
       ),
-      title: Text(entry['medicine_name'] as String),
-      subtitle: Text(entry['dosage'] as String),
+      title: Text((entry['medicine_name'] ?? 'Unknown').toString()),
+      subtitle: Text((entry['dosage'] ?? '').toString()),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,

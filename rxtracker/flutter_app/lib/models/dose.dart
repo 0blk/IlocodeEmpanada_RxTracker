@@ -24,12 +24,12 @@ class TodayDose {
   });
 
   factory TodayDose.fromJson(Map<String, dynamic> j) => TodayDose(
-        medicineId: j['medicine_id'] as int,
-        medicineName: j['medicine_name'] as String,
-        dosage: j['dosage'] as String,
+        medicineId: j['medicine_id'] as int? ?? 0,
+        medicineName: j['medicine_name'] as String? ?? 'Unknown',
+        dosage: j['dosage'] as String? ?? '',
         instructions: j['instructions'] as String?,
-        scheduledTime: j['scheduled_time'] as String,
-        timeLabel: j['time_label'] as String,
+        scheduledTime: j['scheduled_time'] as String? ?? DateTime.now().toIso8601String(),
+        timeLabel: j['time_label'] as String? ?? '',
         taken: j['taken'] as bool? ?? false,
         takenAt: j['taken_at'] as String?,
         logId: j['log_id'] as int?,

@@ -42,11 +42,11 @@ class Medicine {
 
     return Medicine(
       id: j['id'] as int?,
-      name: j['name'] as String,
-      dosage: j['dosage'] as String,
-      frequency: j['frequency'] as String,
+      name: j['name'] as String? ?? 'Unknown Medicine',
+      dosage: j['dosage'] as String? ?? '',
+      frequency: j['frequency'] as String? ?? 'once_daily',
       times: parseTimes(j['times']),
-      startDate: j['start_date'] as String,
+      startDate: j['start_date'] as String? ?? DateTime.now().toIso8601String(),
       endDate: j['end_date'] as String?,
       instructions: j['instructions'] as String?,
       stock: j['stock'] as int?,

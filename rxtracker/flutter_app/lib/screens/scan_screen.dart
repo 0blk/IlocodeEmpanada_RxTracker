@@ -289,7 +289,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 4, bottom: 8),
                   child: Text(
-                    _scanResult!['note'] as String,
+                    (_scanResult!['note'] ?? '').toString(),
                     style: TextStyle(color: Colors.orange[700], fontSize: 13),
                   ),
                 ),
@@ -340,7 +340,7 @@ class _ScanScreenState extends State<ScanScreen> {
                   childrenPadding: const EdgeInsets.all(12),
                   children: [
                     Text(
-                      _scanResult!['raw_text'] as String,
+                      (_scanResult!['raw_text'] ?? '').toString(),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ],
@@ -513,14 +513,14 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
               padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
               child: Column(
                 children: [
-                  if (med['times'] != null)
+                  if (med['times'] != null && med['times'] is List)
                     _InfoRow('Times',
-                        (med['times'] as List).cast<String>().join(', ')),
+                        (med['times'] as List).map((e) => e.toString()).join(', ')),
                   if (med['instructions'] != null)
-                    _InfoRow('Instructions', med['instructions'] as String),
+                    _InfoRow('Instructions', (med['instructions'] ?? '').toString()),
                   if (med['category'] != null)
                     _InfoRow('Category',
-                        med['category'].toString().replaceAll('_', ' ')),
+                        (med['category'] ?? '').toString().replaceAll('_', ' ')),
                 ],
               ),
             ),

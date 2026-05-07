@@ -106,9 +106,9 @@ class _OverallStats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalDoses =
-        provider.stats.fold<int>(0, (s, e) => s + (e['total_doses_logged'] as int));
+        provider.stats.fold<int>(0, (s, e) => s + (e['total_doses_logged'] as int? ?? 0));
     final takenDoses =
-        provider.stats.fold<int>(0, (s, e) => s + (e['doses_taken'] as int));
+        provider.stats.fold<int>(0, (s, e) => s + (e['doses_taken'] as int? ?? 0));
     final overallPct =
         totalDoses > 0 ? (takenDoses / totalDoses * 100).toInt() : 0;
 
@@ -185,7 +185,7 @@ class _AdherenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = (stat['adherence_pct'] as num).toDouble();
+    final pct = (stat['adherence_pct'] as num? ?? 0).toDouble();
     final color = pct >= 80
         ? Colors.green
         : pct >= 50
@@ -203,7 +203,7 @@ class _AdherenceCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    stat['medicine_name'] as String,
+                    (stat['medicine_name'] ?? 'Unknown').toString(),
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),

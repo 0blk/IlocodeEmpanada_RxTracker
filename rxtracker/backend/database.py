@@ -1,54 +1,57 @@
-"""Database initialization and connection for RxTracker."""
-import sqlite3
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, JSON
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
 import os
+from datetime import datetime
+from dotenv import load_dotenv
 
-DB_PATH = os.getenv("DB_PATH", "rxtracker.db")
+load_dotenv()
 
+# Use Supabase URL if provided, otherwise fallback to local SQLite
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./rxtracker.db")
 
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+# For SQLite, we need to allow multi-threaded access
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
+# --- Database Models ---
+
+class Medicine(Base):
+    __tablename__ = "medicines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    dosage = Column(String)
+    frequency = Column(String)
+    times = Column(JSON)  # List of strings e.g. ["08:00"]
+    start_date = Column(String)
+    end_date = Column(String, nullable=True)
+    instructions = Column(Text, nullable=True)
+    stock = Column(Integer, default=0)
+    category = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class DoseLog(Base):
+    __tablename__ = "dose_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    medicine_id = Column(Integer, ForeignKey("medicines.id"))
+    taken_at = Column(DateTime, default=datetime.utcnow)
+    notes = Column(Text, nullable=True)
+
+# Create all tables
 def init_db():
-    db = get_db()
-    db.executescript("""
-        CREATE TABLE IF NOT EXISTS medicines (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT NOT NULL,
-            dosage      TEXT NOT NULL,
-            frequency   TEXT NOT NULL,
-            times       TEXT NOT NULL,       -- JSON array of "HH:MM"
-            start_date  TEXT NOT NULL,       -- ISO date
-            end_date    TEXT,                -- ISO date, NULL = ongoing
-            instructions TEXT,
-            stock       INTEGER,             -- pill count, NULL = not tracked
-            category    TEXT,               -- e.g. 'hypertension', 'diabetes'
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
+    Base.metadata.create_all(bind=engine)
 
-        CREATE TABLE IF NOT EXISTS dose_logs (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            medicine_id     INTEGER NOT NULL REFERENCES medicines(id),
-            scheduled_time  TEXT NOT NULL,   -- ISO datetime "YYYY-MM-DDTHH:MM:SS"
-            taken           INTEGER NOT NULL DEFAULT 0,
-            taken_at        TEXT,            -- ISO datetime when actually taken
-            created_at      TEXT DEFAULT (datetime('now')),
-            UNIQUE(medicine_id, scheduled_time)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_doses_medicine ON dose_logs(medicine_id);
-        CREATE INDEX IF NOT EXISTS idx_doses_scheduled ON dose_logs(scheduled_time);
-    """)
-    db.commit()
-
-    # Migration: add 'category' column if it doesn't exist yet (for existing DBs)
+# Dependency to get DB session
+def get_db():
+    db = SessionLocal()
     try:
-        db.execute("ALTER TABLE medicines ADD COLUMN category TEXT")
-        db.commit()
-    except Exception:
-        pass  # Column already exists
-
-    db.close()
+        yield db
+    finally:
+        db.close()
