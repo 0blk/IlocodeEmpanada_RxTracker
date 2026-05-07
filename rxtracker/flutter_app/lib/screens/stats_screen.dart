@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/medicine_provider.dart';
 import '../models/medicine.dart';
+import '../utils/medicine_categories.dart';
+import '../widgets/hover_scale.dart';
 
 class StatsScreen extends StatelessWidget {
   const StatsScreen({super.key});
@@ -9,130 +11,148 @@ class StatsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<MedicineProvider>();
+    final now = DateTime.now();
+    final hour = now.hour;
+    
+    String greeting = hour < 12
+        ? 'Good Morning'
+        : hour < 17
+            ? 'Good Afternoon'
+            : 'Good Evening';
+
+    final activeMedicines = provider.medicines.where((m) => m.isActive).toList();
+    final recentMedicines = provider.medicines.take(3).toList(); // Mocking recent for now
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Stats & Medicines'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: provider.refresh,
-          ),
-        ],
-      ),
-      body: provider.loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: provider.refresh,
-              child: ListView(
-                padding: const EdgeInsets.all(12),
-                children: [
-                  // Overall adherence card
-                  _OverallStats(provider: provider),
-                  const SizedBox(height: 16),
-
-                  Text(
-                    'Per-Medicine Adherence',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...provider.stats.map((s) => _AdherenceCard(stat: s)),
-
-                  const SizedBox(height: 16),
-                  Text(
-                    'All Medicines',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (provider.medicines.isEmpty)
-                    const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('No medicines added yet'),
-                      ),
-                    )
-                  else
-                    ...provider.medicines.map(
-                      (m) => _MedicineManageCard(
-                        medicine: m,
-                        onDelete: () => _confirmDelete(context, provider, m),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            // Header
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$greeting,',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const Text(
+                            'Ilocode Empanada',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                ],
+                    const Icon(Icons.notifications_none_rounded, size: 28),
+                    const SizedBox(width: 16),
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Colors.limeAccent[400],
+                      child: const Icon(Icons.person, color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
             ),
-    );
-  }
 
-  Future<void> _confirmDelete(
-    BuildContext context,
-    MedicineProvider provider,
-    Medicine medicine,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Medicine'),
-        content: Text(
-            'Delete ${medicine.name}? All dose logs will also be deleted.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await provider.deleteMedicine(medicine.id!);
-    }
-  }
-}
-
-class _OverallStats extends StatelessWidget {
-  final MedicineProvider provider;
-
-  const _OverallStats({required this.provider});
-
-  @override
-  Widget build(BuildContext context) {
-    final totalDoses =
-        provider.stats.fold<int>(0, (s, e) => s + (e['total_doses_logged'] as int? ?? 0));
-    final takenDoses =
-        provider.stats.fold<int>(0, (s, e) => s + (e['doses_taken'] as int? ?? 0));
-    final overallPct =
-        totalDoses > 0 ? (takenDoses / totalDoses * 100).toInt() : 0;
-
-    return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _StatItem(
-              label: 'Overall\nAdherence',
-              value: '$overallPct%',
-              icon: Icons.bar_chart,
+            // Title Bar
+            SliverToBoxAdapter(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF6366F1), // Purple Bar
+                ),
+                child: const Text(
+                  'Doctors Report',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ),
-            _StatItem(
-              label: 'Doses\nTaken',
-              value: '$takenDoses',
-              icon: Icons.check_circle,
-            ),
-            _StatItem(
-              label: 'Active\nMedicines',
-              value: '${provider.medicines.where((m) => m.isActive).length}',
-              icon: Icons.medication,
+
+            // Main Content
+            SliverPadding(
+              padding: const EdgeInsets.all(20),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // Current Maintenance Medication Section
+                  _ReportSection(
+                    title: 'Current Maintenance Medication',
+                    items: activeMedicines.map((m) => _ReportItem(
+                      name: m.name,
+                      subtitle: '${m.dosage} Instructions',
+                      status: 'Status: Active',
+                      category: m.category,
+                    )).toList(),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Recent Prescription Section
+                  _ReportSection(
+                    title: 'Recent Prescription',
+                    items: recentMedicines.map((m) => _ReportItem(
+                      name: m.name,
+                      subtitle: '${m.dosage} Instructions',
+                      status: 'Date', // Or actual date
+                      category: m.category,
+                    )).toList(),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Share and Export Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6366F1), // Purple
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Share and Export',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_circle_right_rounded, size: 24),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 100),
+                ]),
+              ),
             ),
           ],
         ),
@@ -141,162 +161,118 @@ class _OverallStats extends StatelessWidget {
   }
 }
 
-class _StatItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
+class _ReportSection extends StatelessWidget {
+  final String title;
+  final List<Widget> items;
 
-  const _StatItem({
-    required this.label,
-    required this.value,
-    required this.icon,
+  const _ReportSection({required this.title, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2FF), // Soft Purple background
+        borderRadius: BorderRadius.circular(24),
+      ),
+      padding: const EdgeInsets.all(2), // Thin border effect
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Colors.black,
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Divider(height: 24),
+            ),
+            ...items,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportItem extends StatelessWidget {
+  final String name;
+  final String subtitle;
+  final String status;
+  final String? category;
+
+  const _ReportItem({
+    required this.name,
+    required this.subtitle,
+    required this.status,
+    this.category,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon,
-            color: Theme.of(context).colorScheme.onPrimaryContainer),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-        ),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-        ),
-      ],
-    );
-  }
-}
+    final cat = categoryFromKey(category);
 
-class _AdherenceCard extends StatelessWidget {
-  final Map<String, dynamic> stat;
-
-  const _AdherenceCard({required this.stat});
-
-  @override
-  Widget build(BuildContext context) {
-    final pct = (stat['adherence_pct'] as num? ?? 0).toDouble();
-    final color = pct >= 80
-        ? Colors.green
-        : pct >= 50
-            ? Colors.orange
-            : Colors.red;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    (stat['medicine_name'] ?? 'Unknown').toString(),
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(cat.icon, size: 16, color: Colors.red[400]),
+                      ],
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  '${pct.toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: pct / 100,
-              color: color,
-              backgroundColor: color.withOpacity(0.2),
-              minHeight: 6,
-              borderRadius: BorderRadius.circular(3),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${stat['doses_taken']} of ${stat['total_doses_logged']} doses taken'
-              '${stat['stock'] != null ? " · ${stat['stock']} pills remaining" : ""}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MedicineManageCard extends StatelessWidget {
-  final Medicine medicine;
-  final VoidCallback onDelete;
-
-  const _MedicineManageCard({required this.medicine, required this.onDelete});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: medicine.isActive
-              ? Theme.of(context).colorScheme.primaryContainer
-              : Colors.grey[200],
-          child: Icon(
-            Icons.medication,
-            color: medicine.isActive
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey,
-          ),
-        ),
-        title: Text(medicine.name),
-        subtitle: Text(
-          '${medicine.dosage} · ${medicine.frequencyLabel}'
-          '${medicine.stock != null ? " · ${medicine.stock} pills" : ""}',
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (medicine.lowStock)
-              const Padding(
-                padding: EdgeInsets.only(right: 4),
-                child: Icon(Icons.warning_amber, color: Colors.amber, size: 20),
               ),
-            if (!medicine.isActive)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(8),
+                  color: const Color(0xFFC6FF00), // Lime Green
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'Ended',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: Colors.grey[700]),
+                  status,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
                 ),
               ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: onDelete,
-            ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(color: Colors.black.withOpacity(0.05)),
+        ],
       ),
     );
   }

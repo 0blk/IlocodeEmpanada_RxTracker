@@ -16,18 +16,119 @@ class DoseCard extends StatefulWidget {
 class _DoseCardState extends State<DoseCard> {
   bool _loading = false;
 
-  Color get _statusColor {
-    if (widget.dose.taken) return Colors.green;
-    if (widget.dose.isOverdue) return Colors.red;
-    if (widget.dose.isUpcoming) return Colors.blue;
-    return Colors.orange;
+  Color get _bgColor {
+    if (widget.dose.taken) return const Color(0xFFC6FF00); // Lime Green
+    if (widget.dose.isOverdue) return const Color(0xFFFF1744); // Red
+    return const Color(0xFFEEF2FF); // Soft Blue/Purple
   }
 
-  IconData get _statusIcon {
-    if (widget.dose.taken) return Icons.check_circle;
-    if (widget.dose.isOverdue) return Icons.warning_rounded;
-    if (widget.dose.isUpcoming) return Icons.schedule;
-    return Icons.circle_notifications;
+  Color get _textColor {
+    if (widget.dose.taken || widget.dose.isOverdue) return Colors.black;
+    return Colors.black;
+  }
+
+  Widget get _statusIcon {
+    if (widget.dose.taken) {
+      return const Icon(Icons.check_circle_rounded, color: Colors.black, size: 32);
+    }
+    if (widget.dose.isOverdue) {
+      return Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.white, width: 3),
+          shape: BoxShape.circle,
+        ),
+      );
+    }
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.black26, width: 3),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final timeFormatted = DateFormat('h:mm a').format(
+      DateTime.parse(widget.dose.scheduledTime),
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: _bgColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: _loading ? null : _toggle,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              _statusIcon,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.dose.medicineName,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: _textColor,
+                      ),
+                    ),
+                    Text(
+                      widget.dose.dosage,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _textColor.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (widget.dose.isOverdue && !widget.dose.taken)
+                    const Text(
+                      'MISSED!',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  Text(
+                    timeFormatted,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: (widget.dose.isOverdue && !widget.dose.taken) ? Colors.white : _textColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _toggle() async {
@@ -39,120 +140,5 @@ class _DoseCardState extends State<DoseCard> {
       taken: !widget.dose.taken,
     );
     if (mounted) setState(() => _loading = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final timeFormatted = DateFormat('h:mm a').format(
-      DateTime.parse(widget.dose.scheduledTime),
-    );
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _loading ? null : _toggle,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Status indicator
-              Container(
-                width: 4,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: _statusColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Icon
-              Icon(_statusIcon, color: _statusColor, size: 28),
-              const SizedBox(width: 12),
-
-              // Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.dose.medicineName,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            decoration: widget.dose.taken
-                                ? TextDecoration.lineThrough
-                                : null,
-                            color: widget.dose.taken ? Colors.grey : null,
-                          ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.dose.dosage,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: Colors.grey[600]),
-                    ),
-                    if (widget.dose.instructions != null)
-                      Text(
-                        widget.dose.instructions!,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: Colors.grey[500], fontSize: 11),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                  ],
-                ),
-              ),
-
-              // Time + action
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    timeFormatted,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: _statusColor,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  _loading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : OutlinedButton(
-                          onPressed: _toggle,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: widget.dose.taken
-                                ? Colors.grey
-                                : Colors.green,
-                            side: BorderSide(
-                              color: widget.dose.taken
-                                  ? Colors.grey
-                                  : Colors.green,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            widget.dose.taken ? 'Undo' : 'Take',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

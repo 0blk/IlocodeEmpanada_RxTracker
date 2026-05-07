@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../services/medicine_provider.dart';
 import '../models/medicine.dart';
 import '../utils/medicine_categories.dart';
-import 'add_medicine_screen.dart';
+import '../widgets/hover_scale.dart';
 
 class MedicinesScreen extends StatefulWidget {
   const MedicinesScreen({super.key});
@@ -13,437 +13,432 @@ class MedicinesScreen extends StatefulWidget {
   State<MedicinesScreen> createState() => _MedicinesScreenState();
 }
 
-class _MedicinesScreenState extends State<MedicinesScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  String? _filterCategory;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _confirmDelete(BuildContext context, Medicine med) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        icon: const Icon(Icons.delete_forever, color: Colors.red, size: 40),
-        title: const Text(
-          'Remove Medicine?',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'Are you sure you want to remove "${med.name}" and all its history?\n\nThis cannot be undone.',
-          style: const TextStyle(fontSize: 16),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(context, false),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 50),
-                textStyle: const TextStyle(fontSize: 16),
-              ),
-              child: const Text('Cancel'),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(0, 50),
-                textStyle: const TextStyle(fontSize: 16),
-              ),
-              child: const Text('Yes, Remove'),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      final ok = await context.read<MedicineProvider>().deleteMedicine(med.id!);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(ok ? '${med.name} removed.' : 'Failed to remove medicine.'),
-          backgroundColor: ok ? Colors.green : Colors.red,
-        ));
-      }
-    }
-  }
-
+class _MedicinesScreenState extends State<MedicinesScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<MedicineProvider>();
-    final active = provider.medicines.where((m) => m.isActive).toList();
-    final inactive = provider.medicines.where((m) => !m.isActive).toList();
-
-    // Category filter chips
-    final allCategories = provider.medicines
-        .map((m) => m.category)
-        .where((c) => c != null)
-        .toSet()
-        .cast<String>()
-        .toList();
+    final now = DateTime.now();
+    final hour = now.hour;
+    
+    String greeting = hour < 12
+        ? 'Good Morning'
+        : hour < 17
+            ? 'Good Afternoon'
+            : 'Good Evening';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'My Medicines',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: 'Active (${active.length})'),
-            Tab(text: 'Inactive (${inactive.length})'),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            // Header (Same as Home)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$greeting,',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const Text(
+                            'Ilocode Empanada',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.notifications_none_rounded, size: 28),
+                    const SizedBox(width: 16),
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Colors.limeAccent[400],
+                      child: const Icon(Icons.person, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Big Pill Visual (Restored to 200x200 as per dashboard)
+            SliverToBoxAdapter(
+              child: Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            const Color(0xFF6366F1).withOpacity(0.4),
+                            const Color(0xFF6366F1).withOpacity(0.1),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                    Image.asset(
+                      'assets/pill_3d_visual.png',
+                      width: 120,
+                      height: 120,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(Icons.medication_rounded, size: 100, color: Colors.indigo[400]);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Title
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(
+                  child: Text(
+                    'Medication Bag',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Medicine List
+            if (provider.loading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (provider.medicines.isEmpty)
+              const SliverFillRemaining(
+                child: Center(child: Text('Your medication bag is empty.')),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      return _MedicineInfoCard(medicine: provider.medicines[index]);
+                    },
+                    childCount: provider.medicines.length,
+                  ),
+                ),
+              ),
+            
+            const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Category filter
-          if (allCategories.isNotEmpty)
-            _CategoryFilterRow(
-              categories: allCategories,
-              selected: _filterCategory,
-              onSelected: (k) => setState(
-                () => _filterCategory = (_filterCategory == k) ? null : k,
-              ),
-            ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _MedicineList(
-                  medicines: _filterCategory == null
-                      ? active
-                      : active
-                          .where((m) => m.category == _filterCategory)
-                          .toList(),
-                  onEdit: (m) => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddMedicineScreen(prefill: m, isEdit: true),
-                    ),
-                  ).then((_) => provider.refresh()),
-                  onDelete: (m) => _confirmDelete(context, m),
-                  emptyMessage: 'No active medicines.\nTap + to add one.',
-                ),
-                _MedicineList(
-                  medicines: _filterCategory == null
-                      ? inactive
-                      : inactive
-                          .where((m) => m.category == _filterCategory)
-                          .toList(),
-                  onEdit: (m) => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddMedicineScreen(prefill: m, isEdit: true),
-                    ),
-                  ).then((_) => provider.refresh()),
-                  onDelete: (m) => _confirmDelete(context, m),
-                  emptyMessage: 'No past medicines.',
-                ),
-              ],
-            ),
+      bottomNavigationBar: _BottomNavBar(currentIndex: -1), // Custom nav for this page
+    );
+  }
+}
+
+class _MedicineInfoCard extends StatefulWidget {
+  final Medicine medicine;
+  const _MedicineInfoCard({required this.medicine});
+
+  @override
+  State<_MedicineInfoCard> createState() => _MedicineInfoCardState();
+}
+
+class _MedicineInfoCardState extends State<_MedicineInfoCard> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cat = categoryFromKey(widget.medicine.category);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2FF), // Soft Purple background
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'medicines_fab',
-        onPressed: () => Navigator.pushNamed(context, '/add-medicine')
-            .then((_) => provider.refresh()),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Medicine', style: TextStyle(fontSize: 16)),
-      ),
-    );
-  }
-}
-
-class _CategoryFilterRow extends StatelessWidget {
-  final List<String> categories;
-  final String? selected;
-  final void Function(String) onSelected;
-
-  const _CategoryFilterRow({
-    required this.categories,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        children: categories.map((key) {
-          final cat = categoryFromKey(key);
-          final isSelected = selected == key;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              avatar: Icon(cat.icon, size: 16,
-                  color: isSelected ? Colors.white : cat.color),
-              label: Text(cat.label),
-              selected: isSelected,
-              selectedColor: cat.color,
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : null,
-                fontWeight: FontWeight.w600,
+      child: Column(
+        children: [
+          // Header (Always visible)
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                color: _isExpanded ? const Color(0xFF6366F1).withOpacity(0.6) : const Color(0xFF6366F1).withOpacity(0.5),
+                borderRadius: _isExpanded 
+                    ? const BorderRadius.vertical(top: Radius.circular(24))
+                    : BorderRadius.circular(24),
               ),
-              onSelected: (_) => onSelected(key),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _MedicineList extends StatelessWidget {
-  final List<Medicine> medicines;
-  final void Function(Medicine) onEdit;
-  final void Function(Medicine) onDelete;
-  final String emptyMessage;
-
-  const _MedicineList({
-    required this.medicines,
-    required this.onEdit,
-    required this.onDelete,
-    required this.emptyMessage,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (medicines.isEmpty) {
-      return Center(
-        child: Text(
-          emptyMessage,
-          textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .titleMedium
-              ?.copyWith(color: Colors.grey[500]),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
-      itemCount: medicines.length,
-      itemBuilder: (_, i) => _MedicineCard(
-        medicine: medicines[i],
-        onEdit: () => onEdit(medicines[i]),
-        onDelete: () => onDelete(medicines[i]),
-      ),
-    );
-  }
-}
-
-class _MedicineCard extends StatelessWidget {
-  final Medicine medicine;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _MedicineCard({
-    required this.medicine,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cat = categoryFromKey(medicine.category);
-    final dateFormat = DateFormat('MMM d, yyyy');
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: cat.color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(cat.icon, color: cat.color, size: 22),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        medicine.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        cat.label,
-                        style: TextStyle(
-                          color: cat.color,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (medicine.lowStock)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[100],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.warning_amber, size: 14,
-                            color: Colors.orange[800]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${medicine.stock} left',
-                          style: TextStyle(
-                            color: Colors.orange[800],
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            const Divider(height: 18),
-            Row(
-              children: [
-                _InfoChip(
-                    icon: Icons.straighten,
-                    label: medicine.dosage),
-                const SizedBox(width: 8),
-                _InfoChip(
-                    icon: Icons.repeat,
-                    label: medicine.frequencyLabel),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.calendar_today,
-                    size: 13, color: Colors.grey[500]),
-                const SizedBox(width: 4),
-                Text(
-                  '${dateFormat.format(DateTime.parse(medicine.startDate))}'
-                  '${medicine.endDate != null ? ' → ${dateFormat.format(DateTime.parse(medicine.endDate!))}' : ' (ongoing)'}',
-                  style:
-                      TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-            if (medicine.instructions != null &&
-                medicine.instructions!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline,
-                      size: 13, color: Colors.grey[500]),
-                  const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      medicine.instructions!,
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey[600]),
+                      widget.medicine.name,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Icon(cat.icon, color: Colors.red[400], size: 20),
+                  const SizedBox(width: 8),
+                  Icon(
+                    _isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          if (_isExpanded)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _InfoSection(
+                    title: 'Medicine information',
+                    content: widget.medicine.instructions ?? 'No description provided.',
+                  ),
+                  const SizedBox(height: 16),
+                  _InfoSection(
+                    title: 'Medicine Dosage',
+                    content: widget.medicine.dosage,
+                  ),
+                  const SizedBox(height: 16),
+                  _InfoSection(
+                    title: 'Medicine Instructions',
+                    content: 'Take as prescribed by your doctor.',
+                  ),
+                  const SizedBox(height: 16),
+                  _InfoSection(
+                    title: 'Medice Duration',
+                    content: '${widget.medicine.startDate} to ${widget.medicine.endDate ?? 'Ongoing'}',
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFC6FF00), // Lime Green
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(27),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'See Prescription',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_circle_right_rounded, size: 24),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-            ],
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit',
-                        style: TextStyle(fontSize: 15)),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 46),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Remove',
-                        style: TextStyle(fontSize: 15)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[50],
-                      foregroundColor: Colors.red[700],
-                      elevation: 0,
-                      minimumSize: const Size(0, 46),
-                    ),
-                  ),
-                ),
-              ],
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
+class _InfoSection extends StatelessWidget {
+  final String title;
+  final String content;
 
-  const _InfoChip({required this.icon, required this.label});
+  const _InfoSection({required this.title, required this.content});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 16, top: 4),
+          child: Text(
+            content,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black.withOpacity(0.8),
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BottomNavBar extends StatelessWidget {
+  final int currentIndex;
+  const _BottomNavBar({required this.currentIndex});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
+      height: 90,
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Icon(icon, size: 13, color: Colors.grey[600]),
-          const SizedBox(width: 4),
-          Text(label,
-              style:
-                  TextStyle(fontSize: 12, color: Colors.grey[700])),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavBarItem(
+                icon: Icons.home_rounded,
+                label: 'Home',
+                isSelected: currentIndex == 0,
+                onTap: () => Navigator.pushReplacementNamed(context, '/dashboard'),
+              ),
+              _NavBarItem(
+                icon: Icons.calendar_month_rounded,
+                label: 'Schedule',
+                isSelected: currentIndex == 1,
+                onTap: () => Navigator.pushReplacementNamed(context, '/schedule'),
+              ),
+              const SizedBox(width: 60),
+              _NavBarItem(
+                icon: Icons.bar_chart_rounded,
+                label: 'Report',
+                isSelected: currentIndex == 2,
+                onTap: () => Navigator.pushReplacementNamed(context, '/report'),
+              ),
+              _NavBarItem(
+                icon: Icons.person_rounded,
+                label: 'Profile',
+                isSelected: currentIndex == 3,
+                onTap: () {},
+              ),
+            ],
+          ),
+          Positioned(
+            top: -30,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: HoverScale(
+                child: GestureDetector(
+                  onTap: () => Navigator.pushNamed(context, '/scan'),
+                  behavior: HitTestBehavior.translucent,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFC6FF00),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFC6FF00).withOpacity(0.4),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.document_scanner_rounded, color: Colors.black, size: 32),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text('SCAN', style: TextStyle(color: Color(0xFFC6FF00), fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _NavBarItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _NavBarItem({required this.icon, required this.label, required this.isSelected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return HoverScale(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: isSelected ? const Color(0xFF6366F1) : Colors.grey[600], size: 28),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(color: isSelected ? const Color(0xFF6366F1) : Colors.grey[600], fontSize: 10, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+          ],
+        ),
       ),
     );
   }
