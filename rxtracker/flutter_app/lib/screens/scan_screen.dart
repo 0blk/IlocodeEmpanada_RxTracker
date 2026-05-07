@@ -136,7 +136,9 @@ class _ScanScreenState extends State<ScanScreen> {
           // Background Image
           if (hasImage)
             Positioned.fill(
-              child: kIsWeb ? Image.memory(_imageBytes!, fit: BoxFit.cover) : Image.file(_selectedImage!, fit: BoxFit.cover),
+              child: kIsWeb 
+                ? Image.memory(_imageBytes!, fit: BoxFit.contain) 
+                : Image.file(_selectedImage!, fit: BoxFit.contain),
             ),
           
           // Dark Overlay
