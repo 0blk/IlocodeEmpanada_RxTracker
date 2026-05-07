@@ -10,14 +10,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ApiService {
   // Using 127.0.0.1 for local Chrome development on port 8080
-  static const String baseUrl = 'http://127.0.0.1:8080';
+  static const String baseUrl =
+      'https://ilocodeempanada-rxtracker.onrender.com/';
 
   final http.Client _client = http.Client();
 
   Map<String, String> get _headers {
     final session = Supabase.instance.client.auth.currentSession;
     final token = session?.accessToken;
-    
+
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -32,7 +33,7 @@ class ApiService {
       'POST',
       Uri.parse('$baseUrl/api/prescriptions/scan'),
     )..headers.addAll(_headers);
-    
+
     request.files.add(
       await http.MultipartFile.fromPath('file', imageFile.path),
     );
