@@ -25,6 +25,7 @@ class Medicine(Base):
     __tablename__ = "medicines"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True) # Supabase User ID (UUID string)
     name = Column(String, index=True)
     dosage = Column(String)
     frequency = Column(String)
@@ -40,6 +41,7 @@ class DoseLog(Base):
     __tablename__ = "dose_logs"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True) # Supabase User ID (UUID string)
     medicine_id = Column(Integer, ForeignKey("medicines.id"))
     taken_at = Column(DateTime, default=datetime.utcnow)
     notes = Column(Text, nullable=True)

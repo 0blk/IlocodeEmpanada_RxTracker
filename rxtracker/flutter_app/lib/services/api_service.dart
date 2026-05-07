@@ -14,10 +14,16 @@ class ApiService {
 
   final http.Client _client = http.Client();
 
-  Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+  Map<String, String> get _headers {
+    final session = Supabase.instance.client.auth.currentSession;
+    final token = session?.accessToken;
+    
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   // ─── Prescription Scan ──────────────────────────────────────────────────────
 
@@ -25,7 +31,8 @@ class ApiService {
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$baseUrl/api/prescriptions/scan'),
-    );
+    )..headers.addAll(_headers);
+    
     request.files.add(
       await http.MultipartFile.fromPath('file', imageFile.path),
     );

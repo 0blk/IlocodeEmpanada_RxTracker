@@ -12,12 +12,29 @@ from typing import Optional, List
 import base64
 import json
 import os
-from dotenv import load_dotenv
 from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
+import jwt
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# Load environment variables from .env file
 load_dotenv()
+
+JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+ALGORITHM = "HS256"
+security = HTTPBearer()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(
+            token, 
+            JWT_SECRET, 
+            algorithms=[ALGORITHM], 
+            options={"verify_aud": False} # Supabase uses specific audiences, we'll keep it simple for now
+        )
+        return payload.get("sub") # This is the unique User ID
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid or expired token: {str(e)}")
 import database as db_models
 from database import get_db, init_db
 from google import genai
@@ -228,17 +245,18 @@ Rules:
 # ─── Medicines CRUD ────────────────────────────────────────────────────────────
 
 @app.get("/api/medicines")
-def list_medicines(db: Session = Depends(get_db)):
-    medicines = db.query(db_models.Medicine).order_by(db_models.Medicine.created_at.desc()).all()
+def list_medicines(user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    medicines = db.query(db_models.Medicine).filter(db_models.Medicine.user_id == user_id).order_by(db_models.Medicine.created_at.desc()).all()
     return medicines
 
 @app.post("/api/medicines", status_code=201)
-def create_medicine(med: Medicine, db: Session = Depends(get_db)):
+def create_medicine(med: Medicine, user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
     new_med = db_models.Medicine(
+        user_id=user_id,
         name=med.name,
         dosage=med.dosage,
         frequency=med.frequency,
-        times=med.times,  # SQLAlchemy handles JSON serialization now
+        times=med.times,
         start_date=med.start_date,
         end_date=med.end_date,
         instructions=med.instructions,
@@ -251,15 +269,21 @@ def create_medicine(med: Medicine, db: Session = Depends(get_db)):
     return new_med
 
 @app.get("/api/medicines/{medicine_id}")
-def get_medicine(medicine_id: int, db: Session = Depends(get_db)):
-    med = db.query(db_models.Medicine).filter(db_models.Medicine.id == medicine_id).first()
+def get_medicine(medicine_id: int, user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    med = db.query(db_models.Medicine).filter(
+        db_models.Medicine.id == medicine_id,
+        db_models.Medicine.user_id == user_id
+    ).first()
     if not med:
         raise HTTPException(404, "Medicine not found")
     return med
 
 @app.patch("/api/medicines/{medicine_id}")
-def update_medicine(medicine_id: int, update: MedicineUpdate, db: Session = Depends(get_db)):
-    med = db.query(db_models.Medicine).filter(db_models.Medicine.id == medicine_id).first()
+def update_medicine(medicine_id: int, update: MedicineUpdate, user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    med = db.query(db_models.Medicine).filter(
+        db_models.Medicine.id == medicine_id,
+        db_models.Medicine.user_id == user_id
+    ).first()
     if not med:
         raise HTTPException(404, "Medicine not found")
 
@@ -272,13 +296,19 @@ def update_medicine(medicine_id: int, update: MedicineUpdate, db: Session = Depe
     return med
 
 @app.delete("/api/medicines/{medicine_id}", status_code=204)
-def delete_medicine(medicine_id: int, db: Session = Depends(get_db)):
-    med = db.query(db_models.Medicine).filter(db_models.Medicine.id == medicine_id).first()
+def delete_medicine(medicine_id: int, user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    med = db.query(db_models.Medicine).filter(
+        db_models.Medicine.id == medicine_id,
+        db_models.Medicine.user_id == user_id
+    ).first()
     if not med:
         raise HTTPException(404, "Medicine not found")
     
     # Delete related logs first
-    db.query(db_models.DoseLog).filter(db_models.DoseLog.medicine_id == medicine_id).delete()
+    db.query(db_models.DoseLog).filter(
+        db_models.DoseLog.medicine_id == medicine_id,
+        db_models.DoseLog.user_id == user_id
+    ).delete()
     db.delete(med)
     db.commit()
     return None
@@ -288,15 +318,16 @@ def delete_medicine(medicine_id: int, db: Session = Depends(get_db)):
 # ─── Dose Logging & Schedule ──────────────────────────────────────────────────
 
 @app.get("/api/doses/today")
-def get_today_doses(db: Session = Depends(get_db)):
+def get_today_doses(user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
     # Timezone buffer: Include medicines starting today OR tomorrow (from server perspective)
     # to account for users in timezones like +08:00
     today_obj = date.today()
     tomorrow_date = (today_obj + timedelta(days=1)).isoformat()
     today_date = today_obj.isoformat()
     
-    # Get active medicines
+    # Get active medicines for THIS user
     medicines = db.query(db_models.Medicine).filter(
+        db_models.Medicine.user_id == user_id,
         db_models.Medicine.start_date <= tomorrow_date,
         (db_models.Medicine.end_date == None) | (db_models.Medicine.end_date >= today_date)
     ).all()
@@ -333,14 +364,18 @@ def get_today_doses(db: Session = Depends(get_db)):
     return result
 
 @app.post("/api/doses/log")
-def log_dose(log_data: DoseLogSchema, db: Session = Depends(get_db)):
+def log_dose(log_data: DoseLogSchema, user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
     """Mark a dose as taken."""
-    med = db.query(db_models.Medicine).filter(db_models.Medicine.id == log_data.medicine_id).first()
+    med = db.query(db_models.Medicine).filter(
+        db_models.Medicine.id == log_data.medicine_id,
+        db_models.Medicine.user_id == user_id
+    ).first()
     if not med:
         raise HTTPException(404, "Medicine not found")
 
     new_log = db_models.DoseLog(
         medicine_id=log_data.medicine_id,
+        user_id=user_id,
         notes=log_data.notes,
         taken_at=datetime.utcnow()
     )
@@ -354,13 +389,14 @@ def log_dose(log_data: DoseLogSchema, db: Session = Depends(get_db)):
     return new_log
 
 @app.get("/api/doses/history")
-def get_dose_history(medicine_id: Optional[int] = None, db: Session = Depends(get_db)):
+def get_dose_history(medicine_id: Optional[int] = None, user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get history with medicine names joined."""
     query = db.query(
         db_models.DoseLog, 
         db_models.Medicine.name.label("medicine_name"),
         db_models.Medicine.dosage.label("dosage")
-    ).join(db_models.Medicine, db_models.DoseLog.medicine_id == db_models.Medicine.id)
+    ).join(db_models.Medicine, db_models.DoseLog.medicine_id == db_models.Medicine.id)\
+     .filter(db_models.DoseLog.user_id == user_id)
 
     if medicine_id:
         query = query.filter(db_models.DoseLog.medicine_id == medicine_id)
@@ -383,12 +419,15 @@ def get_dose_history(medicine_id: Optional[int] = None, db: Session = Depends(ge
     return result
 
 @app.get("/api/doses/stats")
-def get_stats(db: Session = Depends(get_db)):
+def get_stats(user_id: str = Depends(get_current_user), db: Session = Depends(get_db)):
     """Adherence stats per medicine."""
-    medicines = db.query(db_models.Medicine).all()
+    medicines = db.query(db_models.Medicine).filter(db_models.Medicine.user_id == user_id).all()
     result = []
     for med in medicines:
-        logs = db.query(db_models.DoseLog).filter(db_models.DoseLog.medicine_id == med.id).all()
+        logs = db.query(db_models.DoseLog).filter(
+            db_models.DoseLog.medicine_id == med.id,
+            db_models.DoseLog.user_id == user_id
+        ).all()
         total_taken = len(logs)
         
         result.append({

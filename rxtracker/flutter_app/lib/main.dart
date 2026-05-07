@@ -13,8 +13,17 @@ import 'screens/history_screen.dart';
 import 'screens/stats_screen.dart';
 import 'screens/medicines_screen.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/auth_screen.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await Supabase.initialize(
+    url: 'https://ajfvpzgydcerahgiwtah.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqZnZwemd5ZGNlcmFoZ2l3dGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTk2MDAsImV4cCI6MjA5MzczNTYwMH0.UK7u8jKelGs2h4tMLunfpgxzG-HASQyjJN941I0TBQc',
+  );
+
   tz.initializeTimeZones();
   if (!kIsWeb) {
     await NotificationService.instance.init();
@@ -99,7 +108,16 @@ class RxTrackerApp extends StatelessWidget {
               EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         ),
       ),
-      home: const MainShell(),
+      home: StreamBuilder<AuthState>(
+        stream: Supabase.instance.client.auth.onAuthStateChange,
+        builder: (context, snapshot) {
+          final session = snapshot.data?.session;
+          if (session != null) {
+            return const MainShell();
+          }
+          return const AuthScreen();
+        },
+      ),
       routes: {
         '/scan': (_) => const ScanScreen(),
         '/add-medicine': (_) => const AddMedicineScreen(),
@@ -139,6 +157,17 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('RxTracker'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+            },
+          ),
+        ],
+      ),
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
