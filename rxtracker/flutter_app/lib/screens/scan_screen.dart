@@ -109,7 +109,7 @@ class _ScanScreenState extends State<ScanScreen> {
     );
 
     try {
-      await context.read<ApiService>().addMedicine(medicine);
+      await context.read<ApiService>().createMedicine(medicine);
       if (!mounted) return;
       Navigator.pop(context); // Remove loading
       
