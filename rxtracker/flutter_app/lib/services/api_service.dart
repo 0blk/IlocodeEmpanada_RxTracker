@@ -11,7 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class ApiService {
   // Using 127.0.0.1 for local Chrome development on port 8080
   static const String baseUrl =
-      'https://ilocodeempanada-rxtracker.onrender.com/';
+      'https://ilocodeempanada-rxtracker.onrender.com';
 
   final http.Client _client = http.Client();
 
