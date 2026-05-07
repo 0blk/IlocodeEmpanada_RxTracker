@@ -46,43 +46,63 @@ class PhoneFrame extends StatelessWidget {
               borderRadius: BorderRadius.circular(32),
               child: Stack(
                 children: [
-                  child,
-                  // Top Notch/Speaker area
+                  Padding(
+                    padding: const EdgeInsets.only(top: 40), // Pull content down
+                    child: child,
+                  ),
+                  // Floating Dynamic Island / Notch
                   Positioned(
-                    top: 0,
+                    top: 12,
                     left: 0,
                     right: 0,
-                    height: 30,
                     child: Center(
                       child: Container(
-                        width: 80,
-                        height: 18,
+                        width: 100,
+                        height: 28,
                         decoration: BoxDecoration(
                           color: Colors.black,
-                          borderRadius: const BorderRadius.vertical(
-                            bottom: Radius.circular(12),
-                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            const SizedBox(width: 40), // Balance the camera
+                            // Camera Lens
                             Container(
-                              width: 30,
-                              height: 4,
+                              width: 10,
+                              height: 10,
                               decoration: BoxDecoration(
-                                color: Colors.grey[900],
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF1A1A1A),
                                 shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  colors: [
+                                    Colors.blueGrey[900]!,
+                                    Colors.black,
+                                  ],
+                                ),
+                                border: Border.all(
+                                  color: Colors.white10,
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 3,
+                                  height: 3,
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.3),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 10),
                           ],
                         ),
                       ),

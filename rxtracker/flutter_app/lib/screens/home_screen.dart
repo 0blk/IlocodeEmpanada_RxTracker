@@ -201,7 +201,7 @@ class HomeScreen extends StatelessWidget {
                     Color cardColor = const Color(0xFFEEF2FF); // Default light blue
                     if (dose.taken) {
                       cardColor = const Color(0xFFC6FF00); // Green for taken
-                    } else if (dose.isMissed) {
+                    } else if (dose.isOverdue) {
                       cardColor = Colors.redAccent; // Red for missed
                     }
 

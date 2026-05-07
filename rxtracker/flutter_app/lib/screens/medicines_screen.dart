@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../services/medicine_provider.dart';
 import '../models/medicine.dart';
 import '../utils/medicine_categories.dart';
@@ -42,15 +41,15 @@ class _MedicinesScreenState extends State<MedicinesScreen> {
                         Text(
                           '$greeting,',
                           style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.black87,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black54,
                           ),
                         ),
                         Text(
                           provider.profile?['full_name']?.split(' ')[0] ?? 'User',
                           style: const TextStyle(
-                            fontSize: 24,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
                           ),
@@ -70,48 +69,15 @@ class _MedicinesScreenState extends State<MedicinesScreen> {
             ),
           ),
 
-          // Big Pill Visual (Restored to 200x200 as per dashboard)
-          SliverToBoxAdapter(
-            child: Center(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          const Color(0xFF6366F1).withOpacity(0.4),
-                          const Color(0xFF6366F1).withOpacity(0.1),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                  Image.asset(
-                    'assets/pill_3d_visual.png',
-                    width: 120,
-                    height: 120,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(Icons.medication_rounded, size: 100, color: Colors.indigo[400]);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-
           // Title
           const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
+              padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text(
                   'Medication Bag',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 32,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
                   ),
@@ -186,7 +152,7 @@ class _MedicineInfoCardState extends State<_MedicineInfoCard> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                color: _isExpanded ? const Color(0xFF6366F1).withOpacity(0.6) : const Color(0xFF6366F1).withOpacity(0.5),
+                color: const Color(0xFF6366F1),
                 borderRadius: _isExpanded 
                     ? const BorderRadius.vertical(top: Radius.circular(24))
                     : BorderRadius.circular(24),
@@ -197,16 +163,16 @@ class _MedicineInfoCardState extends State<_MedicineInfoCard> {
                     child: Text(
                       widget.medicine.name,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                   ),
-                  Icon(cat.icon, color: Colors.red[400], size: 20),
+                  Icon(cat.icon, color: Colors.limeAccent, size: 20),
                   const SizedBox(width: 8),
                   Icon(
-                    _isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                    _isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                     color: Colors.white,
                     size: 28,
                   ),
@@ -241,32 +207,34 @@ class _MedicineInfoCardState extends State<_MedicineInfoCard> {
                     content: '${widget.medicine.startDate} to ${widget.medicine.endDate ?? 'Ongoing'}',
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFC6FF00), // Lime Green
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(27),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'See Prescription',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                  HoverScale(
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFC6FF00), // Lime Green
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(27),
                           ),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_circle_right_rounded, size: 24),
-                        ],
+                          elevation: 0,
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'See Prescription',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_circle_right_rounded, size: 24),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -326,9 +294,3 @@ class _InfoSection extends StatelessWidget {
     );
   }
 }
-
-    );
-  }
-}
-
-class _InfoSection extends StatelessWidget {

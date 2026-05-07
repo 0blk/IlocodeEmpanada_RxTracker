@@ -182,7 +182,7 @@ class _MainShellState extends State<MainShell> {
         children: [
           HomeScreen(onBagTap: () => _onNavTap(1)),
           const MedicinesScreen(),
-          const ScanScreen(),
+          ScanScreen(onBack: () => _onNavTap(0)),
           const StatsScreen(),
           const ProfileScreen(),
         ],

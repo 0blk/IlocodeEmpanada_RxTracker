@@ -11,7 +11,8 @@ import 'package:flutter/foundation.dart';
 import '../widgets/hover_scale.dart';
 
 class ScanScreen extends StatefulWidget {
-  const ScanScreen({super.key});
+  final VoidCallback? onBack;
+  const ScanScreen({super.key, this.onBack});
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -190,7 +191,13 @@ class _ScanScreenState extends State<ScanScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          if (widget.onBack != null) {
+                            widget.onBack!();
+                          } else if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          }
+                        },
                       ),
                       const Spacer(),
                       const Text('PRESCRIPTION SCAN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
