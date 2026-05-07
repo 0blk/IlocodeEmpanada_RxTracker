@@ -27,6 +27,10 @@ security = HTTPBearer()
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
+        # Debug: Print the algorithm the token says it's using
+        header = jwt.get_unverified_header(token)
+        print(f"!!! JWT Header: {header}")
+        
         payload = jwt.decode(
             token, 
             JWT_SECRET, 
