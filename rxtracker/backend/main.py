@@ -3,22 +3,63 @@ RxTracker Backend - FastAPI
 Prescription reader + medicine tracker/reminder API
 """
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import base64
 import json
 import os
+from dotenv import load_dotenv
 from datetime import datetime, date
+
+# Load environment variables from .env file
+load_dotenv()
 from database import get_db, init_db
 import sqlite3
+from google import genai
+from google.genai import types
+
 
 app = FastAPI(title="RxTracker API", version="1.0.0")
 
+@app.middleware("http")
+async def log_requests(request, call_next):
+    import time
+    start_time = time.time()
+    path = request.url.path
+    method = request.method
+    if method == "OPTIONS":
+        return await call_next(request)
+        
+    print(f"\n>>> [{method}] {path} - Starting request")
+    try:
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        print(f"<<< [{method}] {path} - Completed {response.status_code} ({process_time:.2f}ms)")
+        return response
+    except Exception as e:
+        print(f"!!! [{method}] {path} - Server Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": str(e), "traceback": traceback.format_exc()})
+
+# Catch validation errors (like multipart parsing failures)
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"!!! Validation Error: {exc}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
+
+# CORS must be added AFTER other middlewares to ensure it wraps them correctly
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -26,6 +67,14 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "time": datetime.now().isoformat()}
+
+@app.post("/test-post")
+def test_post():
+    return {"message": "POST request successful!"}
 
 # ─── Models ────────────────────────────────────────────────────────────────────
 
@@ -60,16 +109,15 @@ class DoseLog(BaseModel):
 
 @app.post("/api/prescriptions/scan")
 async def scan_prescription(file: UploadFile = File(...)):
+    print("Request received!")
     """
     Upload a prescription image and extract medicine info using Claude Vision.
     Falls back to mock data if ANTHROPIC_API_KEY is not set.
     """
     image_data = await file.read()
-    b64_image = base64.standard_b64encode(image_data).decode("utf-8")
 
     content_type = file.content_type or "image/jpeg"
-    # Using the key provided in the snippet, assuming it's intended as a fallback or the key itself
-    api_key = os.getenv("GEMINI_API_KEY", "AIzaSyAUAJLpRPbHzWCzC63TIZjlQQF-jG7BV4I")
+    api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
         return {
@@ -85,51 +133,97 @@ async def scan_prescription(file: UploadFile = File(...)):
             "note": "Mock response - set GEMINI_API_KEY for real OCR"
         }
 
-    import google.generativeai as genai
-    try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    api_key = os.getenv("GEMINI_API_KEY")
 
-        prompt = """Analyze this prescription image. Extract ALL medicines and return ONLY valid JSON (no markdown, no explanation):
+    try:
+        client = genai.Client(api_key=api_key)
+        model_id = "gemini-3-flash-preview"
+
+        prompt = """You are a medical prescription OCR specialist. Carefully analyze this prescription image, which may be handwritten, printed, or a mix of both. Some text may be unclear or abbreviated — use your medical knowledge to interpret common drug names, dosages, and abbreviations (e.g. OD=once daily, BD/BID=twice daily, TDS/TID=three times daily, QID=four times daily, PRN=as needed).
+
+Extract ALL medicines listed and return ONLY valid JSON with no markdown fences, no extra text:
 
 {
-  "raw_text": "full text from prescription",
+  "raw_text": "full transcription of all text visible in the prescription",
   "medicines": [
     {
-      "name": "medicine name",
+      "name": "full medicine name",
       "dosage": "e.g. 500mg",
       "frequency": "once_daily|twice_daily|three_times_daily|four_times_daily",
       "times": ["HH:MM"],
-      "instructions": "any special instructions",
+      "instructions": "any special instructions (e.g. take with food, after meals)",
       "duration_days": null
     }
   ]
 }
 
-Infer times: once_daily=["08:00"], twice_daily=["08:00","20:00"], three_times_daily=["08:00","14:00","20:00"]"""
+Rules:
+- If text is illegible, make your best medical interpretation and note it in instructions.
+- Infer times from frequency: once_daily=["08:00"], twice_daily=["08:00","20:00"], three_times_daily=["08:00","14:00","20:00"], four_times_daily=["08:00","12:00","16:00","20:00"]
+- Never return an empty medicines array if any drug names are visible.
+- Return ONLY the raw JSON object, nothing else."""
+        
+        # Ensure mime_type is valid
+        mime_type = content_type
+        if not mime_type.startswith("image/"):
+            mime_type = "image/jpeg"
 
-        image_part = {"mime_type": content_type, "data": base64.b64decode(b64_image)}
-        response = model.generate_content([prompt, image_part])
-        text = response.text.strip()
+        # Construct request using the new google-genai SDK
+        response = client.models.generate_content(
+            model=model_id,
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_bytes(data=image_data, mime_type=mime_type),
+                        types.Part.from_text(text=prompt),
+                    ],
+                )
+            ],
+            config=types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(
+                    thinking_level="HIGH",
+                ),
+            )
+        )
+        
+        # Extract text from response
+        text = ""
+        if response.candidates and response.candidates[0].content.parts:
+            # For thinking models, the text might be in the last part or combine them
+            text = "".join([p.text for p in response.candidates[0].content.parts if p.text])
+        
+        if not text:
+            print("!!! No text found in AI response")
+            return {"error": "AI returned empty response", "medicines": []}
 
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
+        # Robust JSON extraction (existing logic)
 
+        # Robust JSON extraction
+        import re
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if json_match:
+            text = json_match.group(0)
+        
         try:
             parsed = json.loads(text)
         except json.JSONDecodeError:
             parsed = {"raw_text": text, "medicines": [], "parse_error": True}
 
         return parsed
+
     except Exception as e:
-        print(f"Error during scan: {e}")
+        import traceback
+        error_msg = str(e)
+        print(f"!!! Error during scan: {error_msg}")
+        traceback.print_exc()
         return {
-            "error": str(e),
+            "error": error_msg,
+            "note": f"AI Error: {error_msg}",
             "raw_text": "Error occurred during scan.",
             "medicines": []
         }
+
 
 
 # ─── Medicines CRUD ────────────────────────────────────────────────────────────

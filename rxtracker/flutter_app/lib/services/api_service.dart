@@ -4,10 +4,12 @@ import 'package:http/http.dart' as http;
 import '../models/medicine.dart';
 import '../models/dose.dart';
 import 'dart:typed_data';
+// ignore: unused_import
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiService {
-  // Change this to your backend IP when running on a physical device
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  // Using 127.0.0.1 for local Chrome development on port 8080
+  static const String baseUrl = 'http://127.0.0.1:8080';
 
   final http.Client _client = http.Client();
 
@@ -33,17 +35,18 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> scanPrescriptionBytes(Uint8List bytes) async {
-  final request = http.MultipartRequest(
-    'POST',
-    Uri.parse('$baseUrl/api/prescriptions/scan'),
-  );
-  request.files.add(
-    http.MultipartFile.fromBytes('file', bytes, filename: 'prescription.jpg'), // [cite: 91]
-  );
-  final streamed = await request.send();
-  final response = await http.Response.fromStream(streamed);
-  _checkStatus(response);
-  return json.decode(response.body);
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/api/prescriptions/scan'),
+    );
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes,
+          filename: 'prescription.jpg'), // [cite: 91]
+    );
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    _checkStatus(response);
+    return json.decode(response.body);
   }
 
   // ─── Medicines ───────────────────────────────────────────────────────────────
