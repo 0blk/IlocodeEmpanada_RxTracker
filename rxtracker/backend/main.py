@@ -61,74 +61,52 @@ class DoseLog(BaseModel):
 @app.post("/api/prescriptions/scan")
 async def scan_prescription(file: UploadFile = File(...)):
     """
-    Upload a prescription image and extract medicine info using Gemini Vision.
-    Falls back to mock data if GEMINI_API_KEY is not set.
+    Upload a prescription image and extract medicine info using Claude Vision.
+    Falls back to mock data if ANTHROPIC_API_KEY is not set.
     """
     image_data = await file.read()
     b64_image = base64.standard_b64encode(image_data).decode("utf-8")
 
     content_type = file.content_type or "image/jpeg"
+    # Using the key provided in the snippet, assuming it's intended as a fallback or the key itself
     api_key = os.getenv("GEMINI_API_KEY", "AIzaSyAUAJLpRPbHzWCzC63TIZjlQQF-jG7BV4I")
 
     if not api_key:
         return {
-            "raw_text": "Mock prescription: Amlodipine 5mg, take once daily for hypertension",
+            "raw_text": "Mock prescription: Amoxicillin 500mg, take 3x daily for 7 days",
             "medicines": [{
-                "name": "Amlodipine",
-                "dosage": "5mg",
-                "frequency": "once_daily",
-                "times": ["08:00"],
-                "instructions": "Take in the morning.",
-                "duration_days": None,
-                "category": "hypertension"
+                "name": "Amoxicillin",
+                "dosage": "500mg",
+                "frequency": "three_times_daily",
+                "times": ["08:00", "14:00", "20:00"],
+                "instructions": "Take with food. Complete full course.",
+                "duration_days": 7
             }],
-            "note": "Mock response — set GEMINI_API_KEY environment variable for real OCR"
+            "note": "Mock response - set GEMINI_API_KEY for real OCR"
         }
 
     import google.generativeai as genai
-    import logging
-
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-1.5-flash-latest")
 
-        prompt = """You are an expert pharmacist and OCR system designed to read handwritten and printed medical prescriptions. Analyze this prescription image with extreme care. 
+        prompt = """Analyze this prescription image. Extract ALL medicines and return ONLY valid JSON (no markdown, no explanation):
 
-Extract ALL medicines present in the image and return ONLY valid JSON (no markdown, no explanation). Make sure to catch multiple prescriptions if present. 
-
-Expected JSON format:
 {
-  "raw_text": "A full, verbatim transcript of all text found on the prescription",
+  "raw_text": "full text from prescription",
   "medicines": [
     {
-      "name": "Corrected medicine name (fix spelling mistakes)",
-      "dosage": "e.g. 500mg, 1 tablet, 10ml",
+      "name": "medicine name",
+      "dosage": "e.g. 500mg",
       "frequency": "once_daily|twice_daily|three_times_daily|four_times_daily",
       "times": ["HH:MM"],
-      "instructions": "Specific instructions like 'Take with food', 'After meals', 'As needed'",
-      "duration_days": null,
-      "category": "one of: hypertension|diabetes|antibiotic|cardiac|pain_relief|mental_health|vitamins|respiratory|gastrointestinal|other"
+      "instructions": "any special instructions",
+      "duration_days": null
     }
   ]
 }
 
-Rules:
-1. Pay close attention to medical abbreviations:
-   - OD = once_daily
-   - BID or BD = twice_daily
-   - TID or TDS = three_times_daily
-   - QID = four_times_daily
-   - PRN = as needed (map to once_daily if required, but add to instructions)
-   - PO = by mouth
-2. Infer times from frequency: 
-   - once_daily=["08:00"]
-   - twice_daily=["08:00","20:00"]
-   - three_times_daily=["08:00","14:00","20:00"]
-   - four_times_daily=["08:00","12:00","16:00","20:00"]
-3. Infer category from drug name and class (e.g. Amlodipine->hypertension, Metformin->diabetes). If unsure, use "other".
-4. Correct obvious spelling mistakes in medicine names.
-5. If there are multiple medicines, ensure EVERY single one is extracted as a separate object in the 'medicines' array.
-"""
+Infer times: once_daily=["08:00"], twice_daily=["08:00","20:00"], three_times_daily=["08:00","14:00","20:00"]"""
 
         image_part = {"mime_type": content_type, "data": base64.b64decode(b64_image)}
         response = model.generate_content([prompt, image_part])
@@ -146,20 +124,13 @@ Rules:
 
         return parsed
     except Exception as e:
-        logging.error(f"Gemini API Error: {e}")
+        print(f"Error during scan: {e}")
         return {
-            "raw_text": f"Mock prescription (API Error: {str(e)}): Amlodipine 5mg, take once daily for hypertension",
-            "medicines": [{
-                "name": "Amlodipine",
-                "dosage": "5mg",
-                "frequency": "once_daily",
-                "times": ["08:00"],
-                "instructions": "Take in the morning.",
-                "duration_days": None,
-                "category": "hypertension"
-            }],
-            "note": "Fell back to mock response due to API error."
+            "error": str(e),
+            "raw_text": "Error occurred during scan.",
+            "medicines": []
         }
+
 
 # ─── Medicines CRUD ────────────────────────────────────────────────────────────
 

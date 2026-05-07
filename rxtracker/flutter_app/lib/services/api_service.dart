@@ -7,7 +7,7 @@ import 'dart:typed_data';
 
 class ApiService {
   // Change this to your backend IP when running on a physical device
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = 'http://127.0.0.1:8000';
 
   final http.Client _client = http.Client();
 
