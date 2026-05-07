@@ -113,9 +113,14 @@ class _ScanScreenState extends State<ScanScreen> {
       if (!mounted) return;
       Navigator.pop(context); // Remove loading
       
-      // Mark as added instead of removing
+      // Update the actual map in the result list
       setState(() {
-        med['added'] = true;
+        final meds = _scanResult!['medicines'] as List;
+        for (var m in meds) {
+          if (m['name'] == med['name'] && m['dosage'] == med['dosage']) {
+            m['added'] = true;
+          }
+        }
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -363,7 +368,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 ...medicines.asMap().entries.map(
                       (entry) => _EditableMedicineCard(
                         index: entry.key,
-                        medicine: Map<String, dynamic>.from(entry.value),
+                        medicine: entry.value as Map<String, dynamic>,
                         isExpanded: _expandedEdits.contains(entry.key),
                         onToggleEdit: () => setState(() {
                           if (_expandedEdits.contains(entry.key)) {
