@@ -13,7 +13,7 @@ import base64
 import json
 import os
 from dotenv import load_dotenv
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
 
 # Load environment variables from .env file
@@ -289,12 +289,15 @@ def delete_medicine(medicine_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/doses/today")
 def get_today_doses(db: Session = Depends(get_db)):
-    """Get all scheduled doses for today with their log status."""
-    today_date = date.today().isoformat()
+    # Timezone buffer: Include medicines starting today OR tomorrow (from server perspective)
+    # to account for users in timezones like +08:00
+    today_obj = date.today()
+    tomorrow_date = (today_obj + timedelta(days=1)).isoformat()
+    today_date = today_obj.isoformat()
     
     # Get active medicines
     medicines = db.query(db_models.Medicine).filter(
-        db_models.Medicine.start_date <= today_date,
+        db_models.Medicine.start_date <= tomorrow_date,
         (db_models.Medicine.end_date == None) | (db_models.Medicine.end_date >= today_date)
     ).all()
 
