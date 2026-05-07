@@ -471,10 +471,10 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
   late String? _category;
 
   static const _frequencyOptions = [
-    ('once_daily', 'Once Daily'),
-    ('twice_daily', 'Twice Daily'),
-    ('three_times_daily', '3× Daily'),
-    ('four_times_daily', '4× Daily'),
+    {'key': 'once_daily', 'label': 'Once Daily'},
+    {'key': 'twice_daily', 'label': 'Twice Daily'},
+    {'key': 'three_times_daily', 'label': '3× Daily'},
+    {'key': 'four_times_daily', 'label': '4× Daily'},
   ];
 
   @override
@@ -609,7 +609,7 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: catInfo?.color.withOpacity(0.2) ?? cs.primary.withOpacity(0.1),
+                    backgroundColor: (catInfo?.color ?? cs.primary).withOpacity(0.2),
                     child: Icon(catInfo?.icon ?? Icons.medication,
                         color: catInfo?.color ?? cs.primary, size: 22),
                   ),
@@ -619,11 +619,11 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          med['name']?.toString().isEmpty ?? true ? 'Missing Name' : med['name'],
+                          (med['name']?.toString() ?? '').isEmpty ? 'Missing Name' : med['name'],
                           style: TextStyle(
                             fontWeight: FontWeight.bold, 
                             fontSize: 16,
-                            color: med['name']?.toString().isEmpty ?? true ? Colors.red : null,
+                            color: (med['name']?.toString() ?? '').isEmpty ? Colors.red : null,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -701,7 +701,7 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                         border: OutlineInputBorder(),
                       ),
                       items: _frequencyOptions
-                          .map((o) => DropdownMenuItem(value: o.$1, child: Text(o.$2)))
+                          .map((o) => DropdownMenuItem(value: o['key']!, child: Text(o['label']!)))
                           .toList(),
                       onChanged: (v) => setState(() => _frequency = v ?? _frequency),
                     ),
