@@ -59,6 +59,13 @@ async def log_requests(request, call_next):
     if method == "OPTIONS":
         return await call_next(request)
         
+    # Collapse double slashes in the path to prevent 404 errors
+    if "//" in path:
+        new_path = path.replace("//", "/")
+        print(f"--- Fixing double slash: {path} -> {new_path}")
+        request.scope["path"] = new_path
+        path = new_path
+
     print(f"\n>>> [{method}] {path} - Starting request")
     try:
         response = await call_next(request)
@@ -480,6 +487,4 @@ def get_stats(user_id: str = Depends(get_current_user), db: Session = Depends(ge
         })
     return result
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "time": datetime.utcnow().isoformat()}
+
