@@ -82,11 +82,14 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  Future<void> _addMedicineInstantly(Map<String, dynamic> med) async {
+  // FIXED: Accepts the index to update the state correctly after editing
+  Future<void> _addMedicineInstantly(
+      Map<String, dynamic> med, int index) async {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     String? endDate;
     if (med['duration_days'] != null) {
-      final end = DateTime.now().add(Duration(days: med['duration_days'] as int));
+      final end =
+          DateTime.now().add(Duration(days: med['duration_days'] as int));
       endDate = end.toIso8601String().substring(0, 10);
     }
 
@@ -112,15 +115,17 @@ class _ScanScreenState extends State<ScanScreen> {
       await context.read<ApiService>().createMedicine(medicine);
       if (!mounted) return;
       Navigator.pop(context); // Remove loading
-      
-      // Update the actual map in the result list
+
+      // FIXED: Update specifically by index.
+      // This ensures that even if 'name' or 'dosage' were changed from "Missing...",
+      // we target the correct item in the scan results.
       setState(() {
-        final meds = _scanResult!['medicines'] as List;
-        for (var m in meds) {
-          if (m['name'] == med['name'] && m['dosage'] == med['dosage']) {
-            m['added'] = true;
-          }
-        }
+        final List<dynamic> meds = List.from(_scanResult!['medicines']);
+        meds[index] = {
+          ...med,
+          'added': true,
+        };
+        _scanResult!['medicines'] = meds;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,7 +139,9 @@ class _ScanScreenState extends State<ScanScreen> {
       if (!mounted) return;
       Navigator.pop(context); // Remove loading
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to add medicine: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Failed to add medicine: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -143,7 +150,8 @@ class _ScanScreenState extends State<ScanScreen> {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     String? endDate;
     if (med['duration_days'] != null) {
-      final end = DateTime.now().add(Duration(days: med['duration_days'] as int));
+      final end =
+          DateTime.now().add(Duration(days: med['duration_days'] as int));
       endDate = end.toIso8601String().substring(0, 10);
     }
 
@@ -166,9 +174,9 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final medicines = (_scanResult?['medicines'] as List?)
-            ?.cast<Map<String, dynamic>>() ??
-        [];
+    final medicines =
+        (_scanResult?['medicines'] as List?)?.cast<Map<String, dynamic>>() ??
+            [];
 
     return Scaffold(
       appBar: AppBar(
@@ -221,7 +229,6 @@ class _ScanScreenState extends State<ScanScreen> {
                 onTap: () => _pickImage(ImageSource.gallery),
               ),
             ] else ...[
-              // Full-height image preview
               GestureDetector(
                 onTap: () => _showFullImage(context),
                 child: ClipRRect(
@@ -299,8 +306,6 @@ class _ScanScreenState extends State<ScanScreen> {
                 ],
               ),
             ],
-
-            // Error
             if (_error != null) ...[
               const SizedBox(height: 14),
               Container(
@@ -316,15 +321,13 @@ class _ScanScreenState extends State<ScanScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(_error!,
-                          style: const TextStyle(
-                              color: Colors.red, fontSize: 14)),
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 14)),
                     ),
                   ],
                 ),
               ),
             ],
-
-            // Scan results
             if (_scanResult != null) ...[
               const SizedBox(height: 20),
               Row(
@@ -384,12 +387,11 @@ class _ScanScreenState extends State<ScanScreen> {
                             _expandedEdits.remove(entry.key);
                           });
                         },
-                        onAdd: (med) => _addMedicineInstantly(med),
+                        // FIXED: Pass the entry key (index) to the add function
+                        onAdd: (med, idx) => _addMedicineInstantly(med, idx),
                         onManualEdit: (med) => _openAddScreen(med),
                       ),
                     ),
-
-              // Raw text
               if (_scanResult!['raw_text'] != null) ...[
                 const SizedBox(height: 16),
                 ExpansionTile(
@@ -449,7 +451,8 @@ class _EditableMedicineCard extends StatefulWidget {
   final bool isExpanded;
   final VoidCallback onToggleEdit;
   final void Function(Map<String, dynamic>) onSaveEdit;
-  final void Function(Map<String, dynamic>) onAdd;
+  // FIXED: Signature changed to accept the index
+  final void Function(Map<String, dynamic>, int) onAdd;
   final void Function(Map<String, dynamic>) onManualEdit;
 
   const _EditableMedicineCard({
@@ -499,10 +502,14 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
     super.dispose();
   }
 
+  // FIXED: Enhanced validation to ensure literal "Missing" text is replaced
   bool get _isValid {
-    return _nameCtrl.text.trim().isNotEmpty &&
-           _dosageCtrl.text.trim().isNotEmpty &&
-           _frequency.isNotEmpty;
+    final name = _nameCtrl.text.trim();
+    final dose = _dosageCtrl.text.trim();
+    return name.isNotEmpty &&
+        !name.toLowerCase().contains('missing') &&
+        dose.isNotEmpty &&
+        !dose.toLowerCase().contains('missing');
   }
 
   void _showCategoryPicker() {
@@ -535,7 +542,8 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: sel ? cat.color : cat.color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -544,7 +552,8 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(cat.icon, size: 18, color: sel ? Colors.white : cat.color),
+                          Icon(cat.icon,
+                              size: 18, color: sel ? Colors.white : cat.color),
                           const SizedBox(width: 8),
                           Text(
                             cat.label,
@@ -609,14 +618,14 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header row
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 60, 12), // Added right padding for button
+                  padding: const EdgeInsets.fromLTRB(14, 12, 60, 12),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundColor: (catInfo?.color ?? cs.primary).withOpacity(0.2),
+                        backgroundColor:
+                            (catInfo?.color ?? cs.primary).withOpacity(0.2),
                         child: Icon(catInfo?.icon ?? Icons.medication,
                             color: catInfo?.color ?? cs.primary, size: 22),
                       ),
@@ -626,20 +635,40 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              (med['name']?.toString() ?? '').isEmpty ? 'Missing Name' : med['name'],
+                              (med['name']?.toString() ?? '').isEmpty
+                                  ? 'Missing Name'
+                                  : med['name'],
                               style: TextStyle(
-                                fontWeight: FontWeight.bold, 
+                                fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                                color: (med['name']?.toString() ?? '').isEmpty ? Colors.red : null,
+                                color: (med['name']
+                                            ?.toString()
+                                            .toLowerCase()
+                                            .contains('missing') ??
+                                        true)
+                                    ? Colors.red
+                                    : null,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               '${med['dosage'] ?? 'Missing Dosage'}  ·  ${(med['frequency'] ?? 'Missing Frequency').toString().replaceAll('_', ' ')}',
                               style: TextStyle(
-                                fontSize: 13, 
-                                color: (med['dosage'] == null || med['frequency'] == null) ? Colors.red[700] : Colors.grey[600],
-                                fontWeight: (med['dosage'] == null || med['frequency'] == null) ? FontWeight.bold : null,
+                                fontSize: 13,
+                                color: (med['dosage']
+                                            ?.toString()
+                                            .toLowerCase()
+                                            .contains('missing') ??
+                                        true)
+                                    ? Colors.red[700]
+                                    : Colors.grey[600],
+                                fontWeight: (med['dosage']
+                                            ?.toString()
+                                            .toLowerCase()
+                                            .contains('missing') ??
+                                        true)
+                                    ? FontWeight.bold
+                                    : null,
                               ),
                             ),
                           ],
@@ -648,8 +677,6 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                     ],
                   ),
                 ),
-
-                // Edit form (expanded)
                 if (widget.isExpanded && !isAdded) ...[
                   const Divider(height: 1),
                   Padding(
@@ -658,7 +685,8 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('Edit Details',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
                         const SizedBox(height: 16),
                         TextField(
                           controller: _nameCtrl,
@@ -667,7 +695,7 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                             prefixIcon: Icon(Icons.medication),
                             border: OutlineInputBorder(),
                           ),
-                          onChanged: (v) => setState(() {}), 
+                          onChanged: (v) => setState(() {}),
                           textCapitalization: TextCapitalization.words,
                         ),
                         const SizedBox(height: 12),
@@ -689,9 +717,11 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                             border: OutlineInputBorder(),
                           ),
                           items: _frequencyOptions
-                              .map((o) => DropdownMenuItem(value: o['key']!, child: Text(o['label']!)))
+                              .map((o) => DropdownMenuItem(
+                                  value: o['key']!, child: Text(o['label']!)))
                               .toList(),
-                          onChanged: (v) => setState(() => _frequency = v ?? _frequency),
+                          onChanged: (v) =>
+                              setState(() => _frequency = v ?? _frequency),
                         ),
                         const SizedBox(height: 12),
                         TextField(
@@ -715,7 +745,8 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                             ),
                             child: Row(
                               children: [
-                                Icon(catInfo?.icon ?? Icons.category, color: catInfo?.color ?? cs.primary),
+                                Icon(catInfo?.icon ?? Icons.category,
+                                    color: catInfo?.color ?? cs.primary),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
@@ -731,42 +762,43 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 60), // Space for the floating button
+                        const SizedBox(height: 60),
                       ],
                     ),
                   ),
                 ],
               ],
             ),
-
-            // The Action Button (Positioned Bottom Right)
             Positioned(
               right: 12,
               bottom: 12,
-              child: isAdded 
-                ? const CircleAvatar(
-                    backgroundColor: Colors.green,
-                    child: Icon(Icons.check, color: Colors.white),
-                  )
-                : Material(
-                    color: _isValid ? cs.primary : Colors.grey[300],
-                    shape: const CircleBorder(),
-                    elevation: 2,
-                    child: IconButton(
-                      onPressed: () {
-                        if (!_isValid) {
-                          if (!widget.isExpanded) widget.onToggleEdit();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please fill in essential info first')),
-                          );
-                        } else {
-                          widget.onAdd(_buildUpdated());
-                        }
-                      },
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      tooltip: 'Add to Tracker',
+              child: isAdded
+                  ? const CircleAvatar(
+                      backgroundColor: Colors.green,
+                      child: Icon(Icons.check, color: Colors.white),
+                    )
+                  : Material(
+                      color: _isValid ? cs.primary : Colors.grey[300],
+                      shape: const CircleBorder(),
+                      elevation: 2,
+                      child: IconButton(
+                        onPressed: () {
+                          if (!_isValid) {
+                            if (!widget.isExpanded) widget.onToggleEdit();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Please fill in essential info first')),
+                            );
+                          } else {
+                            // FIXED: Passing index back to parent
+                            widget.onAdd(_buildUpdated(), widget.index);
+                          }
+                        },
+                        icon: const Icon(Icons.add, color: Colors.white),
+                        tooltip: 'Add to Tracker',
+                      ),
                     ),
-                  ),
             ),
           ],
         ),
@@ -776,34 +808,6 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
 }
 
 // ── Helper widgets ────────────────────────────────────────────────────────────
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500)),
-          ),
-          Expanded(
-              child: Text(value, style: const TextStyle(fontSize: 13))),
-        ],
-      ),
-    );
-  }
-}
 
 class _StepCard extends StatelessWidget {
   final String step, title, body;
@@ -843,8 +847,7 @@ class _StepCard extends StatelessWidget {
                         fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 2),
                 Text(body,
-                    style:
-                        TextStyle(fontSize: 13, color: Colors.grey[700])),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[700])),
               ],
             ),
           ),
@@ -877,8 +880,7 @@ class _LargePickButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
           child: Row(
             children: [
               Icon(icon, color: Colors.white, size: 36),
@@ -892,13 +894,12 @@ class _LargePickButton extends StatelessWidget {
                           fontSize: 18,
                           fontWeight: FontWeight.bold)),
                   Text(subtitle,
-                      style: const TextStyle(
-                          color: Colors.white70, fontSize: 13)),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 13)),
                 ],
               ),
               const Spacer(),
-              const Icon(Icons.chevron_right,
-                  color: Colors.white70, size: 28),
+              const Icon(Icons.chevron_right, color: Colors.white70, size: 28),
             ],
           ),
         ),
