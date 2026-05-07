@@ -82,6 +82,60 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
+  Future<void> _addMedicineInstantly(Map<String, dynamic> med) async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    String? endDate;
+    if (med['duration_days'] != null) {
+      final end = DateTime.now().add(Duration(days: med['duration_days'] as int));
+      endDate = end.toIso8601String().substring(0, 10);
+    }
+
+    final medicine = Medicine(
+      name: med['name'] ?? '',
+      dosage: med['dosage'] ?? '',
+      frequency: med['frequency'] ?? 'once_daily',
+      times: (med['times'] as List?)?.cast<String>() ?? ['08:00'],
+      startDate: today,
+      endDate: endDate,
+      instructions: med['instructions'] as String?,
+      category: med['category'] as String?,
+    );
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await context.read<ApiService>().addMedicine(medicine);
+      if (!mounted) return;
+      Navigator.pop(context); // Remove loading
+      
+      // Remove from the list of detected medicines
+      setState(() {
+        final meds = List<Map<String, dynamic>>.from(_scanResult!['medicines']);
+        meds.removeWhere((m) => m['name'] == med['name'] && m['dosage'] == med['dosage']);
+        _scanResult!['medicines'] = meds;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${medicine.name} added to tracker!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Remove loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add medicine: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   void _openAddScreen(Map<String, dynamic> med) {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     String? endDate;
@@ -327,7 +381,8 @@ class _ScanScreenState extends State<ScanScreen> {
                             _expandedEdits.remove(entry.key);
                           });
                         },
-                        onAdd: (med) => _openAddScreen(med),
+                        onAdd: (med) => _addMedicineInstantly(med),
+                        onManualEdit: (med) => _openAddScreen(med),
                       ),
                     ),
 
@@ -392,6 +447,7 @@ class _EditableMedicineCard extends StatefulWidget {
   final VoidCallback onToggleEdit;
   final void Function(Map<String, dynamic>) onSaveEdit;
   final void Function(Map<String, dynamic>) onAdd;
+  final void Function(Map<String, dynamic>) onManualEdit;
 
   const _EditableMedicineCard({
     required this.index,
@@ -400,6 +456,7 @@ class _EditableMedicineCard extends StatefulWidget {
     required this.onToggleEdit,
     required this.onSaveEdit,
     required this.onAdd,
+    required this.onManualEdit,
   });
 
   @override
@@ -439,6 +496,74 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
     super.dispose();
   }
 
+  bool get _isValid {
+    return _nameCtrl.text.trim().isNotEmpty &&
+           _dosageCtrl.text.trim().isNotEmpty &&
+           _frequency.isNotEmpty;
+  }
+
+  void _showCategoryPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Select Category',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: kMedicineCategories.map((cat) {
+                  final sel = _category == cat.key;
+                  return InkWell(
+                    onTap: () {
+                      setState(() => _category = cat.key);
+                      Navigator.pop(context);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: sel ? cat.color : cat.color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: cat.color.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(cat.icon, size: 18, color: sel ? Colors.white : cat.color),
+                          const SizedBox(width: 8),
+                          Text(
+                            cat.label,
+                            style: TextStyle(
+                              color: sel ? Colors.white : cat.color,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Map<String, dynamic> _buildUpdated() {
     final timesMap = {
       'once_daily': ['08:00'],
@@ -470,226 +595,187 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 10, 0),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: catInfo?.color ?? cs.primary,
-                  child: Icon(catInfo?.icon ?? Icons.medication,
-                      color: Colors.white, size: 18),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        med['name'] ?? 'Unknown',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      Text(
-                        '${med['dosage'] ?? '—'}  ·  ${(med['frequency'] ?? '').toString().replaceAll('_', ' ')}',
-                        style: TextStyle(
-                            fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Info rows (collapsed view)
-          if (!widget.isExpanded) ...[
+      child: InkWell(
+        onTap: widget.onToggleEdit,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
-              child: Column(
+              padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+              child: Row(
                 children: [
-                  if (med['times'] != null && med['times'] is List)
-                    _InfoRow('Times',
-                        (med['times'] as List).map((e) => e.toString()).join(', ')),
-                  if (med['instructions'] != null)
-                    _InfoRow('Instructions', (med['instructions'] ?? '').toString()),
-                  if (med['category'] != null)
-                    _InfoRow('Category',
-                        (med['category'] ?? '').toString().replaceAll('_', ' ')),
-                ],
-              ),
-            ),
-          ],
-
-          // Edit form (expanded)
-          if (widget.isExpanded) ...[
-            const Divider(height: 20),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Edit Details',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Medicine Name',
-                      prefixIcon: Icon(Icons.medication),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    style: const TextStyle(fontSize: 15),
-                    textCapitalization: TextCapitalization.words,
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: catInfo?.color.withOpacity(0.2) ?? cs.primary.withOpacity(0.1),
+                    child: Icon(catInfo?.icon ?? Icons.medication,
+                        color: catInfo?.color ?? cs.primary, size: 22),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _dosageCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Dosage',
-                      prefixIcon: Icon(Icons.straighten),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    style: const TextStyle(fontSize: 15),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _instructionsCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Instructions',
-                      prefixIcon: Icon(Icons.info_outline),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    style: const TextStyle(fontSize: 15),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 10),
-                  // Frequency dropdown
-                  DropdownButtonFormField<String>(
-                    value: _frequency,
-                    decoration: const InputDecoration(
-                      labelText: 'Frequency',
-                      prefixIcon: Icon(Icons.repeat),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: _frequencyOptions
-                        .map((o) => DropdownMenuItem(
-                            value: o.$1, child: Text(o.$2)))
-                        .toList(),
-                    onChanged: (v) =>
-                        setState(() => _frequency = v ?? _frequency),
-                  ),
-                  const SizedBox(height: 10),
-                  // Category chips
-                  const Text('Category',
-                      style:
-                          TextStyle(fontSize: 13, color: Colors.grey)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: kMedicineCategories.map((cat) {
-                      final sel = _category == cat.key;
-                      return GestureDetector(
-                        onTap: () =>
-                            setState(() => _category = cat.key),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 120),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: sel
-                                ? cat.color
-                                : cat.color.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: sel
-                                  ? cat.color
-                                  : cat.color.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(cat.icon,
-                                  size: 14,
-                                  color: sel ? Colors.white : cat.color),
-                              const SizedBox(width: 4),
-                              Text(
-                                cat.label,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color:
-                                      sel ? Colors.white : cat.color,
-                                ),
-                              ),
-                            ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          med['name']?.toString().isEmpty ?? true ? 'Missing Name' : med['name'],
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold, 
+                            fontSize: 16,
+                            color: med['name']?.toString().isEmpty ?? true ? Colors.red : null,
                           ),
                         ),
-                      );
-                    }).toList(),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${med['dosage'] ?? 'Missing Dosage'}  ·  ${(med['frequency'] ?? 'Missing Frequency').toString().replaceAll('_', ' ')}',
+                          style: TextStyle(
+                            fontSize: 13, 
+                            color: (med['dosage'] == null || med['frequency'] == null) ? Colors.red[700] : Colors.grey[600],
+                            fontWeight: (med['dosage'] == null || med['frequency'] == null) ? FontWeight.bold : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // The Add Button (Plus sign)
+                  Material(
+                    color: _isValid ? cs.primary : Colors.grey[300],
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      onPressed: () {
+                        if (!_isValid) {
+                          if (!widget.isExpanded) widget.onToggleEdit();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please fill in essential info first')),
+                          );
+                        } else {
+                          widget.onAdd(_buildUpdated());
+                        }
+                      },
+                      icon: Icon(Icons.add, color: _isValid ? Colors.white : Colors.grey[600]),
+                      tooltip: 'Add to Tracker',
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
 
-          // Action buttons
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-            child: Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: widget.isExpanded
-                      ? () {
-                          widget.onSaveEdit(_buildUpdated());
-                        }
-                      : widget.onToggleEdit,
-                  icon: Icon(
-                      widget.isExpanded ? Icons.check : Icons.edit_outlined,
-                      size: 18),
-                  label: Text(widget.isExpanded ? 'Done' : 'Edit',
-                      style: const TextStyle(fontSize: 14)),
-                  style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 42)),
+            // Edit form (expanded)
+            if (widget.isExpanded) ...[
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Edit Details',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Medicine Name*',
+                        prefixIcon: Icon(Icons.medication),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (v) => setState(() {}), // Update validity
+                      textCapitalization: TextCapitalization.words,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _dosageCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Dosage* (e.g. 500mg)',
+                        prefixIcon: Icon(Icons.straighten),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (v) => setState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _frequency,
+                      decoration: const InputDecoration(
+                        labelText: 'Frequency*',
+                        prefixIcon: Icon(Icons.repeat),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _frequencyOptions
+                          .map((o) => DropdownMenuItem(value: o.$1, child: Text(o.$2)))
+                          .toList(),
+                      onChanged: (v) => setState(() => _frequency = v ?? _frequency),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _instructionsCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Instructions (Optional)',
+                        prefixIcon: Icon(Icons.info_outline),
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 16),
+                    // Category Selector Trigger
+                    InkWell(
+                      onTap: _showCategoryPicker,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[400]!),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(catInfo?.icon ?? Icons.category, color: catInfo?.color ?? cs.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                catInfo?.label ?? 'Select Category',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: catInfo?.color ?? Colors.grey[700],
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.arrow_drop_down),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: widget.onToggleEdit,
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              widget.onSaveEdit(_buildUpdated());
+                            },
+                            child: const Text('Save Changes'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => widget.onManualEdit(_buildUpdated()),
+                        child: const Text('Advanced Settings...'),
+                      ),
+                    ),
+                  ],
                 ),
-                if (widget.isExpanded) ...[
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: widget.onToggleEdit,
-                    icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Cancel',
-                        style: TextStyle(fontSize: 14)),
-                    style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 42),
-                        foregroundColor: Colors.grey),
-                  ),
-                ],
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: () => widget.onAdd(
-                      widget.isExpanded ? _buildUpdated() : med),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add to Tracker',
-                      style: TextStyle(fontSize: 14)),
-                  style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(0, 42)),
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
