@@ -6,6 +6,7 @@ import '../models/dose.dart';
 import 'dart:typed_data';
 // ignore: unused_import
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ApiService {
   // Using 127.0.0.1 for local Chrome development on port 8080
