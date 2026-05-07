@@ -113,11 +113,9 @@ class _ScanScreenState extends State<ScanScreen> {
       if (!mounted) return;
       Navigator.pop(context); // Remove loading
       
-      // Remove from the list of detected medicines
+      // Mark as added instead of removing
       setState(() {
-        final meds = List<Map<String, dynamic>>.from(_scanResult!['medicines']);
-        meds.removeWhere((m) => m['name'] == med['name'] && m['dosage'] == med['dosage']);
-        _scanResult!['medicines'] = meds;
+        med['added'] = true;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -592,56 +590,163 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
         .where((c) => c.key == (med['category'] ?? ''))
         .firstOrNull;
 
+    final bool isAdded = med['added'] ?? false;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
-        onTap: widget.onToggleEdit,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        onTap: isAdded ? null : widget.onToggleEdit,
+        child: Stack(
           children: [
-            // Header row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: (catInfo?.color ?? cs.primary).withOpacity(0.2),
-                    child: Icon(catInfo?.icon ?? Icons.medication,
-                        color: catInfo?.color ?? cs.primary, size: 22),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header row
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 60, 12), // Added right padding for button
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: (catInfo?.color ?? cs.primary).withOpacity(0.2),
+                        child: Icon(catInfo?.icon ?? Icons.medication,
+                            color: catInfo?.color ?? cs.primary, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              (med['name']?.toString() ?? '').isEmpty ? 'Missing Name' : med['name'],
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 16,
+                                color: (med['name']?.toString() ?? '').isEmpty ? Colors.red : null,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${med['dosage'] ?? 'Missing Dosage'}  ·  ${(med['frequency'] ?? 'Missing Frequency').toString().replaceAll('_', ' ')}',
+                              style: TextStyle(
+                                fontSize: 13, 
+                                color: (med['dosage'] == null || med['frequency'] == null) ? Colors.red[700] : Colors.grey[600],
+                                fontWeight: (med['dosage'] == null || med['frequency'] == null) ? FontWeight.bold : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
+                ),
+
+                // Edit form (expanded)
+                if (widget.isExpanded && !isAdded) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          (med['name']?.toString() ?? '').isEmpty ? 'Missing Name' : med['name'],
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold, 
-                            fontSize: 16,
-                            color: (med['name']?.toString() ?? '').isEmpty ? Colors.red : null,
+                        const Text('Edit Details',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _nameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Medicine Name*',
+                            prefixIcon: Icon(Icons.medication),
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (v) => setState(() {}), 
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _dosageCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Dosage* (e.g. 500mg)',
+                            prefixIcon: Icon(Icons.straighten),
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (v) => setState(() {}),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: _frequency,
+                          decoration: const InputDecoration(
+                            labelText: 'Frequency*',
+                            prefixIcon: Icon(Icons.repeat),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _frequencyOptions
+                              .map((o) => DropdownMenuItem(value: o['key']!, child: Text(o['label']!)))
+                              .toList(),
+                          onChanged: (v) => setState(() => _frequency = v ?? _frequency),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _instructionsCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Instructions (Optional)',
+                            prefixIcon: Icon(Icons.info_outline),
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 16),
+                        InkWell(
+                          onTap: _showCategoryPicker,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[400]!),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(catInfo?.icon ?? Icons.category, color: catInfo?.color ?? cs.primary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    catInfo?.label ?? 'Select Category',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: catInfo?.color ?? Colors.grey[700],
+                                    ),
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_drop_down),
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${med['dosage'] ?? 'Missing Dosage'}  ·  ${(med['frequency'] ?? 'Missing Frequency').toString().replaceAll('_', ' ')}',
-                          style: TextStyle(
-                            fontSize: 13, 
-                            color: (med['dosage'] == null || med['frequency'] == null) ? Colors.red[700] : Colors.grey[600],
-                            fontWeight: (med['dosage'] == null || med['frequency'] == null) ? FontWeight.bold : null,
-                          ),
-                        ),
+                        const SizedBox(height: 60), // Space for the floating button
                       ],
                     ),
                   ),
-                  // The Add Button (Plus sign)
-                  Material(
+                ],
+              ],
+            ),
+
+            // The Action Button (Positioned Bottom Right)
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: isAdded 
+                ? const CircleAvatar(
+                    backgroundColor: Colors.green,
+                    child: Icon(Icons.check, color: Colors.white),
+                  )
+                : Material(
                     color: _isValid ? cs.primary : Colors.grey[300],
                     shape: const CircleBorder(),
+                    elevation: 2,
                     child: IconButton(
                       onPressed: () {
                         if (!_isValid) {
@@ -653,127 +758,11 @@ class _EditableMedicineCardState extends State<_EditableMedicineCard> {
                           widget.onAdd(_buildUpdated());
                         }
                       },
-                      icon: Icon(Icons.add, color: _isValid ? Colors.white : Colors.grey[600]),
+                      icon: const Icon(Icons.add, color: Colors.white),
                       tooltip: 'Add to Tracker',
                     ),
                   ),
-                ],
-              ),
             ),
-
-            // Edit form (expanded)
-            if (widget.isExpanded) ...[
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Edit Details',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Medicine Name*',
-                        prefixIcon: Icon(Icons.medication),
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (v) => setState(() {}), // Update validity
-                      textCapitalization: TextCapitalization.words,
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _dosageCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Dosage* (e.g. 500mg)',
-                        prefixIcon: Icon(Icons.straighten),
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (v) => setState(() {}),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: _frequency,
-                      decoration: const InputDecoration(
-                        labelText: 'Frequency*',
-                        prefixIcon: Icon(Icons.repeat),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _frequencyOptions
-                          .map((o) => DropdownMenuItem(value: o['key']!, child: Text(o['label']!)))
-                          .toList(),
-                      onChanged: (v) => setState(() => _frequency = v ?? _frequency),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _instructionsCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Instructions (Optional)',
-                        prefixIcon: Icon(Icons.info_outline),
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 16),
-                    // Category Selector Trigger
-                    InkWell(
-                      onTap: _showCategoryPicker,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[400]!),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(catInfo?.icon ?? Icons.category, color: catInfo?.color ?? cs.primary),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                catInfo?.label ?? 'Select Category',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: catInfo?.color ?? Colors.grey[700],
-                                ),
-                              ),
-                            ),
-                            const Icon(Icons.arrow_drop_down),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: widget.onToggleEdit,
-                            child: const Text('Cancel'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              widget.onSaveEdit(_buildUpdated());
-                            },
-                            child: const Text('Save Changes'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Center(
-                      child: TextButton(
-                        onPressed: () => widget.onManualEdit(_buildUpdated()),
-                        child: const Text('Advanced Settings...'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
       ),
